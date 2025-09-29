@@ -1,0 +1,35 @@
+/* Clean, minimal styles for the new card-based layout */
+.map-container {
+  width: 100%;
+  height: 24rem; /* Fixed height for consistent layout */
+  background-color: #f3f4f6; /* Light gray background */
+  border-radius: 0.5rem; /* Match card border radius */
+  position: relative;
+  overflow: hidden;
+}
+
+/* Ensure MapLibre GL renders properly */
+.map-container .maplibregl-canvas-container {
+  width: 100% !important;
+  height: 100% !important;
+}
+
+/* Harbor marker styles */
+.harbor-marker {
+  transition: all 0.2s ease;
+}
+
+.harbor-marker:hover {
+  transform: scale(1.1);
+  z-index: 1000;
+}
+
+/* Waypoint marker styles */
+.waypoint-marker {
+  transition: all 0.2s ease;
+}
+
+.waypoint-marker:hover {
+  transform: scale(1.1);
+  z-index: 1000;
+}

@@ -1,0 +1,12 @@
+{
+  "name": "sailfrisco-monorepo",
+  "private": true,
+  "scripts": {
+    "dev": "concurrently -k -n web,server -c blue,green \"npm run dev --prefix web\" \"npm run dev --prefix server\"",
+    "start:web": "npm run dev --prefix web",
+    "start:server": "npm run dev --prefix server"
+  },
+  "devDependencies": {
+    "concurrently": "^9.2.1"
+  }
+}

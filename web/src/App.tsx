@@ -13,6 +13,47 @@ const HARBORS: Record<HarborKey, { lat: number; lon: number }> = {
   'Richmond': { lat: 37.9120, lon: -122.3593 },
 }
 
+// Beaufort Wind Scale data with color coding and wave heights
+const BEAUFORT_SCALE = [
+  { force: 0, name: 'Calm', minKts: 0, maxKts: 1, color: '#E3F2FD', textColor: '#1976D2', description: 'Calm', waveHeight: '0 ft' },
+  { force: 1, name: 'Light Air', minKts: 1, maxKts: 3, color: '#BBDEFB', textColor: '#1565C0', description: 'Light Air', waveHeight: '0-1 ft' },
+  { force: 2, name: 'Light Breeze', minKts: 4, maxKts: 6, color: '#C8E6C9', textColor: '#2E7D32', description: 'Light Breeze', waveHeight: '1-2 ft' },
+  { force: 3, name: 'Gentle Breeze', minKts: 7, maxKts: 10, color: '#A5D6A7', textColor: '#388E3C', description: 'Gentle Breeze', waveHeight: '2-4 ft' },
+  { force: 4, name: 'Moderate Breeze', minKts: 11, maxKts: 16, color: '#DCEDC8', textColor: '#689F38', description: 'Moderate Breeze', waveHeight: '3-5 ft' },
+  { force: 5, name: 'Fresh Breeze', minKts: 17, maxKts: 21, color: '#F0F4C3', textColor: '#827717', description: 'Fresh Breeze', waveHeight: '4-8 ft' },
+  { force: 6, name: 'Strong Breeze', minKts: 22, maxKts: 27, color: '#FFF9C4', textColor: '#F57F17', description: 'Strong Breeze', waveHeight: '6-10 ft' },
+  { force: 7, name: 'Near Gale', minKts: 28, maxKts: 33, color: '#FFE0B2', textColor: '#F57C00', description: 'Near Gale', waveHeight: '9-13 ft' },
+  { force: 8, name: 'Gale', minKts: 34, maxKts: 40, color: '#FFCCBC', textColor: '#D84315', description: 'Gale', waveHeight: '13-20 ft' },
+  { force: 9, name: 'Strong Gale', minKts: 41, maxKts: 47, color: '#FFAB91', textColor: '#BF360C', description: 'Strong Gale', waveHeight: '18-25 ft' },
+  { force: 10, name: 'Storm', minKts: 48, maxKts: 55, color: '#FF8A65', textColor: '#D32F2F', description: 'Storm', waveHeight: '23-32 ft' },
+  { force: 11, name: 'Violent Storm', minKts: 56, maxKts: 63, color: '#FF5722', textColor: '#FFFFFF', description: 'Violent Storm', waveHeight: '29-41 ft' },
+  { force: 12, name: 'Hurricane', minKts: 64, maxKts: Infinity, color: '#D32F2F', textColor: '#FFFFFF', description: 'Hurricane', waveHeight: '37+ ft' },
+]
+
+// Helper function to get Beaufort scale info for wind speed
+function getBeaufortInfo(windSpeedKts: number | null | undefined) {
+  if (windSpeedKts === null || windSpeedKts === undefined || isNaN(windSpeedKts)) {
+    return BEAUFORT_SCALE[0] // Default to Calm
+  }
+  
+  console.log('Wind speed for Beaufort:', windSpeedKts, 'kts')
+  
+  // FIXED LOGIC: Find the first scale where windSpeedKts is less than or equal to maxKts
+  // This handles gaps in ranges properly
+  for (let i = 0; i < BEAUFORT_SCALE.length; i++) {
+    const scale = BEAUFORT_SCALE[i]
+    if (windSpeedKts <= scale.maxKts) {
+      console.log(`Matched Force ${scale.force}: ${scale.description}`)
+      return scale
+    }
+  }
+  
+  // If we get here, it's hurricane force
+  const result = BEAUFORT_SCALE[BEAUFORT_SCALE.length - 1]
+  console.log('Beaufort result:', result.description, 'Force', result.force)
+  return result
+}
+
 // const COMMON_WAYPOINTS = {
 //   'Alcatraz Island': { lat: 37.8267, lon: -122.4230 },
 //   'Golden Gate Bridge': { lat: 37.8199, lon: -122.4783 },
@@ -47,6 +88,7 @@ function App() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [isInitializing, setIsInitializing] = useState(true)
+  const [useLogarithmic, setUseLogarithmic] = useState(true)
   // const [mapStyle, setMapStyle] = useState<'streets' | 'satellite'>('streets')
 
   const mapRef = useRef<Map | null>(null)
@@ -199,9 +241,10 @@ function App() {
       setLoading(true)
       setError(null)
       const { lat, lon } = HARBORS[harbor]
+      const timestamp = Date.now() // Cache busting
       const [marineRes, tidesRes] = await Promise.all([
-        fetch(`/api/marine?lat=${lat}&lon=${lon}`),
-        fetch(`/api/tides?station=9414290`),
+        fetch(`/api/marine?lat=${lat}&lon=${lon}&t=${timestamp}`),
+        fetch(`/api/tides?station=9414290&t=${timestamp}`),
       ])
       if (!marineRes.ok) throw new Error('Marine fetch failed')
       if (!tidesRes.ok) throw new Error('Tides fetch failed')
@@ -333,37 +376,195 @@ function App() {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             {/* Weather/Wind Card */}
             <div className="bg-gradient-to-br from-blue-50 to-blue-100 rounded-lg shadow-sm border border-blue-200 p-6">
-              <h3 className="text-lg font-semibold text-blue-900 mb-4 flex items-center">
-                <span className="mr-2">🌬️</span>
-                Wind & Weather
-              </h3>
               {marine ? (
-                <div className="space-y-4">
-                  <div className="flex justify-between items-center">
-                    <span className="text-sm font-medium text-blue-800">Wind Speed</span>
-                    <span className="text-xl font-bold text-blue-600">
-                      {marine.windSpeedKts && !isNaN(marine.windSpeedKts) ? marine.windSpeedKts.toFixed(1) : 'N/A'} {marine.units.windSpeed || ''}
-                    </span>
+                <>
+                  {/* Wind Scale Visualization */}
+                  <div className="mb-6">
+                    <div className="flex items-center justify-between mb-4">
+                      <h3 className="text-lg font-semibold text-blue-900 flex items-center">
+                        <span className="mr-2">🌬️</span>
+                        Wind Scale
+                      </h3>
+                      <div className="flex items-center space-x-2">
+                        <span className="text-xs text-blue-700">Scale:</span>
+                        <button
+                          onClick={() => setUseLogarithmic(false)}
+                          className={`px-2 py-1 text-xs rounded ${
+                            !useLogarithmic 
+                              ? 'bg-blue-600 text-white' 
+                              : 'bg-blue-100 text-blue-700 hover:bg-blue-200'
+                          }`}
+                        >
+                          Linear
+                        </button>
+                        <button
+                          onClick={() => setUseLogarithmic(true)}
+                          className={`px-2 py-1 text-xs rounded ${
+                            useLogarithmic 
+                              ? 'bg-blue-600 text-white' 
+                              : 'bg-blue-100 text-blue-700 hover:bg-blue-200'
+                          }`}
+                        >
+                          Log
+                        </button>
+                      </div>
+                    </div>
+                    
+                    {/* NEW: Beaufort Gauge */}
+                    <div className="mb-4 p-4 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg border border-blue-200">
+                      <div className="text-center mb-3">
+                        <div className="text-lg font-bold text-gray-800">{getBeaufortInfo(marine.windSpeedKts).description}</div>
+                        <div className="text-sm text-gray-600">Force {getBeaufortInfo(marine.windSpeedKts).force} • {marine.windSpeedKts && !isNaN(marine.windSpeedKts) ? marine.windSpeedKts.toFixed(1) : 'N/A'} kts</div>
+                      </div>
+                      
+                      {/* Gauge Container */}
+                      <div className="relative h-8 bg-white rounded-full border-2 border-gray-200 overflow-hidden shadow-inner">
+                        {/* Gauge Segments */}
+                        {BEAUFORT_SCALE.map((scale, index) => {
+                          let leftPercent, widthPercent
+                          
+                          if (useLogarithmic) {
+                            // Logarithmic scaling: log(1 + wind_speed) for better distribution
+                            const logMin = Math.log(1 + scale.minKts)
+                            const logMax = scale.maxKts === Infinity ? Math.log(1 + 64) : Math.log(1 + scale.maxKts)
+                            const logTotal = Math.log(1 + 64)
+                            
+                            leftPercent = (logMin / logTotal) * 100
+                            widthPercent = scale.maxKts === Infinity ? 
+                              (100 - leftPercent) : 
+                              ((logMax - logMin) / logTotal) * 100
+                          } else {
+                            // Linear scaling
+                            leftPercent = (scale.minKts / 64) * 100
+                            widthPercent = scale.maxKts === Infinity ? 
+                              (100 - leftPercent) : 
+                              ((scale.maxKts - scale.minKts) / 64) * 100
+                          }
+                          
+                          const isActive = marine.windSpeedKts && !isNaN(marine.windSpeedKts) && 
+                            marine.windSpeedKts <= scale.maxKts && 
+                            (scale.force === 0 || marine.windSpeedKts > BEAUFORT_SCALE[scale.force - 1].maxKts)
+                          
+                          return (
+                            <div
+                              key={scale.force}
+                              className="absolute h-full transition-all duration-500"
+                              style={{
+                                left: `${leftPercent}%`,
+                                width: `${widthPercent}%`,
+                                backgroundColor: isActive ? scale.color : `${scale.color}40`,
+                                borderRight: index < BEAUFORT_SCALE.length - 1 ? '1px solid rgba(255,255,255,0.3)' : 'none',
+                                boxShadow: isActive ? `0 0 10px ${scale.color}80` : 'none',
+                                zIndex: isActive ? 10 : 1
+                              }}
+                            />
+                          )
+                        })}
+                        
+                        {/* Current Wind Speed Indicator */}
+                        {marine.windSpeedKts && !isNaN(marine.windSpeedKts) && (
+                          <div
+                            className="absolute top-0 w-1 h-full bg-white border border-gray-400 shadow-lg z-20"
+                            style={{
+                              left: `${Math.min(useLogarithmic 
+                                ? (Math.log(1 + marine.windSpeedKts) / Math.log(1 + 64)) * 100
+                                : (marine.windSpeedKts / 64) * 100, 100)}%`,
+                              transform: 'translateX(-50%)'
+                            }}
+                          />
+                        )}
+                      </div>
+                      
+                      {/* Scale Labels */}
+                      <div className="flex justify-between text-xs text-gray-600 mt-2">
+                        {useLogarithmic ? (
+                          <>
+                            <span>0</span>
+                            <span>3</span>
+                            <span>7</span>
+                            <span>15</span>
+                            <span>30</span>
+                            <span>50</span>
+                            <span>60+</span>
+                          </>
+                        ) : (
+                          <>
+                            <span>0</span>
+                            <span>10</span>
+                            <span>20</span>
+                            <span>30</span>
+                            <span>40</span>
+                            <span>50</span>
+                            <span>60+</span>
+                          </>
+                        )}
+                      </div>
+                    </div>
+                    
+                    {/* ORIGINAL: Button List (kept for rollback) */}
+                    <div className="space-y-1" style={{ display: 'none' }}>
+                      {BEAUFORT_SCALE.map((scale) => {
+                        // Use the same fixed logic as getBeaufortInfo
+                        const isCurrent = marine.windSpeedKts && !isNaN(marine.windSpeedKts) && 
+                          marine.windSpeedKts <= scale.maxKts && 
+                          (scale.force === 0 || marine.windSpeedKts > BEAUFORT_SCALE[scale.force - 1].maxKts)
+                        return (
+                          <div 
+                            key={scale.force}
+                            className={`beaufort-scale-item flex items-center justify-between px-3 py-2 rounded text-xs transition-all duration-200 ${
+                              isCurrent ? 'beaufort-scale-current ring-2 ring-blue-500 shadow-lg' : 'hover:shadow-md'
+                            }`}
+                            style={{ 
+                              backgroundColor: isCurrent ? scale.color : `${scale.color}60`,
+                              color: isCurrent ? '#1f2937' : `${scale.textColor}80`,
+                              borderColor: isCurrent ? '#3b82f6' : 'transparent'
+                            }}
+                          >
+                            <div className="flex items-center">
+                              <div className="w-2 h-2 rounded-full mr-2" style={{ backgroundColor: scale.textColor }}></div>
+                              <div className="flex items-center space-x-2">
+                                <span className="font-medium">{scale.name}</span>
+                                <span className="text-xs opacity-75">{scale.waveHeight}</span>
+                              </div>
+                            </div>
+                            <span className="text-xs">{scale.minKts}-{scale.maxKts === Infinity ? '∞' : scale.maxKts} kts</span>
+                          </div>
+                        )
+                      })}
+                    </div>
                   </div>
-                  <div className="flex justify-between items-center">
-                    <span className="text-sm font-medium text-blue-800">Wind Gust</span>
-                    <span className="text-xl font-bold text-blue-600">
-                      {marine.windGustKts && !isNaN(marine.windGustKts) ? marine.windGustKts.toFixed(1) : 'N/A'} {marine.units.windGust || ''}
-                    </span>
+
+                  {/* Wind Data */}
+                  <div className="space-y-4">
+                    <div className="flex justify-between items-center">
+                      <span className="text-sm font-medium text-blue-800">Wind Speed</span>
+                      <span className="text-xl font-bold text-blue-600">
+                        {marine.windSpeedKts && !isNaN(marine.windSpeedKts) ? marine.windSpeedKts.toFixed(1) : 'N/A'} {marine.units.windSpeed || ''}
+                      </span>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <span className="text-sm font-medium text-blue-800">Wind Gust</span>
+                      <span className="text-xl font-bold text-blue-600">
+                        {marine.windGustKts && !isNaN(marine.windGustKts) ? marine.windGustKts.toFixed(1) : 'N/A'} {marine.units.windGust || ''}
+                      </span>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <span className="text-sm font-medium text-blue-800">Direction</span>
+                      <span className="text-xl font-bold text-blue-600">
+                        {getWindDirection(marine.windDirectionDeg)}
+                      </span>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <span className="text-sm font-medium text-blue-800">Wave Height</span>
+                      <span className="text-xl font-bold text-blue-600">
+                        {(() => {
+                          const beaufortInfo = getBeaufortInfo(marine.windSpeedKts)
+                          return beaufortInfo.waveHeight
+                        })()}
+                      </span>
+                    </div>
                   </div>
-                  <div className="flex justify-between items-center">
-                    <span className="text-sm font-medium text-blue-800">Direction</span>
-                    <span className="text-xl font-bold text-blue-600">
-                      {getWindDirection(marine.windDirectionDeg)}
-                    </span>
-                  </div>
-                  <div className="flex justify-between items-center">
-                    <span className="text-sm font-medium text-blue-800">Wave Height</span>
-                    <span className="text-xl font-bold text-blue-600">
-                      {marine.waveHeightM && !isNaN(marine.waveHeightM) ? marine.waveHeightM.toFixed(1) : 'N/A'} {marine.units.waveHeight || ''}
-                    </span>
-                  </div>
-                </div>
+                </>
               ) : (
                 <div className="text-center py-8">
                   <div className="text-4xl mb-2">🌊</div>

@@ -7,6 +7,11 @@ const QuerySchema = z.object({
     lat: z.coerce.number().min(-90).max(90),
     lon: z.coerce.number().min(-180).max(180),
 });
+// Clear cache endpoint for testing
+router.post('/marine/clear-cache', async (req, res) => {
+    cache.clear();
+    res.json({ message: 'Cache cleared' });
+});
 router.get('/marine', async (req, res) => {
     const parse = QuerySchema.safeParse(req.query);
     if (!parse.success) {
@@ -27,21 +32,28 @@ router.get('/marine', async (req, res) => {
         };
         const { data } = await axios.get(url, { params });
         const i = 0;
+        // Convert km/h to knots (1 km/h = 0.539957 knots)
+        const windSpeedKmh = data.hourly?.wind_speed_10m?.[i] ?? null;
+        const windGustKmh = data.hourly?.wind_gusts_10m?.[i] ?? null;
         const normalized = {
             lat,
             lon,
             updatedAt: data.hourly?.time?.[i] ?? null,
-            windSpeedKts: data.hourly?.wind_speed_10m?.[i] ?? null,
-            windGustKts: data.hourly?.wind_gusts_10m?.[i] ?? null,
+            windSpeedKts: windSpeedKmh ? windSpeedKmh * 0.539957 : null,
+            windGustKts: windGustKmh ? windGustKmh * 0.539957 : null,
             windDirectionDeg: data.hourly?.wind_direction_10m?.[i] ?? null,
             waveHeightM: null,
             units: {
-                windSpeed: data.hourly_units?.wind_speed_10m ?? null,
-                windGust: data.hourly_units?.wind_gusts_10m ?? null,
+                windSpeed: 'kts',
+                windGust: 'kts',
                 windDirection: data.hourly_units?.wind_direction_10m ?? null,
                 waveHeight: null,
             },
-            raw: undefined,
+            raw: {
+                windSpeedKmh: windSpeedKmh,
+                windGustKmh: windGustKmh,
+                units: data.hourly_units
+            },
         };
         cache.set(key, normalized);
         res.json({ cached: false, data: normalized });

@@ -33,3 +33,59 @@
   transform: scale(1.1);
   z-index: 1000;
 }
+
+/* Beaufort Wind Scale Styles */
+.beaufort-scale-item {
+  transition: all 0.3s ease;
+  border: 1px solid transparent;
+  position: relative;
+}
+
+.beaufort-scale-item:hover {
+  transform: translateX(2px);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.beaufort-scale-current {
+  animation: activePulse 2s infinite;
+  box-shadow: 0 0 15px rgba(59, 130, 246, 0.4) !important;
+  position: relative;
+  z-index: 10;
+  /* Ensure text stays readable */
+  color: #1f2937 !important;
+  font-weight: 600 !important;
+  text-shadow: 0 1px 2px rgba(255, 255, 255, 0.8);
+}
+
+.beaufort-scale-current::before {
+  content: '';
+  position: absolute;
+  top: -3px;
+  left: -3px;
+  right: -3px;
+  bottom: -3px;
+  background: linear-gradient(45deg, #3b82f6, #1d4ed8, #3b82f6);
+  border-radius: 8px;
+  z-index: -1;
+  animation: borderGlow 3s infinite;
+}
+
+@keyframes activePulse {
+  0%, 100% {
+    transform: scale(1.02);
+    box-shadow: 0 0 15px rgba(59, 130, 246, 0.4);
+  }
+  50% {
+    transform: scale(1.05);
+    box-shadow: 0 0 25px rgba(59, 130, 246, 0.6);
+  }
+}
+
+@keyframes borderGlow {
+  0%, 100% {
+    opacity: 0.6;
+  }
+  50% {
+    opacity: 0.9;
+  }
+}

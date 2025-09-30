@@ -714,56 +714,53 @@ function App() {
                   <div className="flex items-center space-x-4">
                     <h3 className="text-lg font-semibold text-green-900 flex items-center">
                       <span className="mr-2">🌊</span>
-                      Tides
-                    </h3>
-                    
-                    {/* Tide State and Direction */}
-                    {tides && tides.upcoming.length > 0 && (() => {
-                      const now = new Date()
-                      const recentTides = tides.upcoming.filter(tide => {
-                        const tideTime = new Date(tide.time)
-                        return tideTime <= now
-                      }).sort((a, b) => new Date(b.time).getTime() - new Date(a.time).getTime())
-                      
-                      const nextTide = tides.upcoming.find(tide => {
-                        const tideTime = new Date(tide.time)
-                        return tideTime > now
-                      })
-                      
-                      let tideState = 'Unknown'
-                      let direction = ''
-                      let arrow = ''
-                      
-                      if (recentTides.length > 0 && nextTide) {
-                        const recentTide = recentTides[0]
-                        const recentValue = recentTide.valueFt
-                        const nextValue = nextTide.valueFt
+                      {tides && tides.upcoming.length > 0 ? (() => {
+                        const now = new Date()
+                        const recentTides = tides.upcoming.filter(tide => {
+                          const tideTime = new Date(tide.time)
+                          return tideTime <= now
+                        }).sort((a, b) => new Date(b.time).getTime() - new Date(a.time).getTime())
                         
-                        if (nextValue > recentValue) {
-                          tideState = 'Flood'
-                          direction = 'Rising'
-                          arrow = '↗'
-                        } else {
-                          tideState = 'Ebb'
-                          direction = 'Falling'
-                          arrow = '↘'
+                        const nextTide = tides.upcoming.find(tide => {
+                          const tideTime = new Date(tide.time)
+                          return tideTime > now
+                        })
+                        
+                        let tideState = 'Unknown'
+                        let arrow = ''
+                        let nextTideType = ''
+                        let nextTideTime = ''
+                        
+                        if (recentTides.length > 0 && nextTide) {
+                          const recentTide = recentTides[0]
+                          const recentValue = recentTide.valueFt
+                          const nextValue = nextTide.valueFt
+                          
+                          if (nextValue > recentValue) {
+                            tideState = 'Flood'
+                            arrow = '↗'
+                          } else {
+                            tideState = 'Ebb'
+                            arrow = '↘'
+                          }
+                          
+                          nextTideType = nextTide.type || 'Tide'
+                          const nextTideTimeDate = new Date(nextTide.time)
+                          const timeDiff = nextTideTimeDate.getTime() - now.getTime()
+                          const hours = Math.floor(timeDiff / (1000 * 60 * 60))
+                          const minutes = Math.floor((timeDiff % (1000 * 60 * 60)) / (1000 * 60))
+                          
+                          if (hours > 0) {
+                            nextTideTime = `${hours}h ${minutes}m`
+                          } else {
+                            nextTideTime = `${minutes}m`
+                          }
                         }
-                      }
-                      
-                      return (
-                        <div className="flex items-center space-x-2">
-                          <span className="text-sm font-medium text-green-700">
-                            {tideState}
-                          </span>
-                          <span className="text-lg text-green-600">
-                            {arrow}
-                          </span>
-                          <span className="text-xs text-green-600">
-                            {direction}
-                          </span>
-                        </div>
-                      )
-                    })()}
+                        
+                        return `Currently ${tideState} ${arrow} - Next ${nextTideType} in ${nextTideTime}`
+                      })() : 'Tides'
+                    }
+                    </h3>
                   </div>
                   
                   <div className="flex items-center space-x-2">

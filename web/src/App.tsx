@@ -171,15 +171,9 @@ function App() {
     if (mapRef.current || !mapContainerRef.current || isInitializing) return
     
     try {
-      let styleUrl
-      if (mapStyle === 'satellite') {
-        styleUrl = 'https://api.maptiler.com/maps/satellite/style.json?key=get_your_own_OpIi9ZULNHzrESv6T2vL'
-      } else {
-        // Use dark or light streets based on dark mode
-        styleUrl = isDarkMode 
-          ? 'https://api.maptiler.com/maps/dark/style.json?key=get_your_own_OpIi9ZULNHzrESv6T2vL'
-          : 'https://api.maptiler.com/maps/streets/style.json?key=get_your_own_OpIi9ZULNHzrESv6T2vL'
-      }
+      const styleUrl = mapStyle === 'satellite' 
+        ? 'https://api.maptiler.com/maps/satellite/style.json?key=get_your_own_OpIi9ZULNHzrESv6T2vL'
+        : 'https://api.maptiler.com/maps/streets/style.json?key=get_your_own_OpIi9ZULNHzrESv6T2vL'
       
     const map = new maplibregl.Map({
       container: mapContainerRef.current,
@@ -420,7 +414,12 @@ function App() {
         : 'https://api.maptiler.com/maps/streets/style.json?key=get_your_own_OpIi9ZULNHzrESv6T2vL'
     }
     
-    mapRef.current.setStyle(styleUrl)
+    try {
+      mapRef.current.setStyle(styleUrl)
+    } catch (error) {
+      console.error('Map style update error:', error)
+      setError('Failed to update map style. Please refresh the page.')
+    }
     
     // Re-add route line layer after style change
     mapRef.current.on('style.load', () => {

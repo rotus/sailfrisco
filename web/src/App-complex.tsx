@@ -391,7 +391,7 @@ function App() {
       {/* Weather Information Section - Simplified */}
       <section className="bg-white py-6">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="space-y-6">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             {/* Weather/Wind Card */}
             <div className="bg-gradient-to-br from-blue-50 to-blue-100 rounded-lg shadow-sm border border-blue-200">
               {/* Collapsible Header */}
@@ -1356,7 +1356,6 @@ function App() {
             </div>
           </div>
         </div>
-        </div>
       </section>
 
       {/* Route Planner Section */}
@@ -1424,7 +1423,6 @@ function App() {
           </div>
         </div>
       </section>
-    </div>
   )
 }
 

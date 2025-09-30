@@ -112,13 +112,45 @@ function App() {
   const [isTemperatureExpanded, setIsTemperatureExpanded] = useState(false)
   const [beaufortLegendOption, setBeaufortLegendOption] = useState<'none' | 'option1' | 'option2' | 'option3'>('none')
   const [temperatureUnit, setTemperatureUnit] = useState<'celsius' | 'fahrenheit'>('fahrenheit')
-  // const [mapStyle, setMapStyle] = useState<'streets' | 'satellite'>('streets')
+  const [mapStyle, setMapStyle] = useState<'streets' | 'satellite'>('streets')
+  const [showTidalBuoys, setShowTidalBuoys] = useState(false)
+  const [showWeatherStations, setShowWeatherStations] = useState(false)
+  const [isDarkMode, setIsDarkMode] = useState(false)
+  const [showShippingLanes, setShowShippingLanes] = useState(false)
+  const [showHazards, setShowHazards] = useState(false)
+  const [showWaterDepths, setShowWaterDepths] = useState(false)
+  const [showNavigationAids, setShowNavigationAids] = useState(false)
+  const [showNauticalSigns, setShowNauticalSigns] = useState(false)
 
   const mapRef = useRef<Map | null>(null)
   const mapContainerRef = useRef<HTMLDivElement | null>(null)
   const waypointMarkersRef = useRef<Marker[]>([])
   const harborMarkersRef = useRef<Marker[]>([])
+  const tidalBuoyMarkersRef = useRef<Marker[]>([])
+  const weatherStationMarkersRef = useRef<Marker[]>([])
   const [waypoints, setWaypoints] = useState<[number, number][]>([])
+
+  // Tidal buoy locations (NOAA stations) - actual monitoring positions
+  const TIDAL_BUOYS = [
+    { id: '9414290', name: 'San Francisco', lat: 37.8063, lon: -122.4659 }, // SF Bay entrance
+    { id: '9414392', name: 'Oyster Point', lat: 37.6650, lon: -122.3770 }, // Oyster Point Marina
+    { id: '9414575', name: 'Coyote Creek', lat: 37.4650, lon: -122.0230 }, // Alviso Slough
+    { id: '9414449', name: 'Coyote Point', lat: 37.5917, lon: -122.3130 }, // Coyote Point Marina
+    { id: '9414806', name: 'Angel Island', lat: 37.8600, lon: -122.4300 }, // Angel Island
+    { id: '9415020', name: 'Point Reyes', lat: 38.0000, lon: -122.9833 }, // Point Reyes
+    { id: '9415144', name: 'Point Bonita', lat: 37.8100, lon: -122.5300 }, // Point Bonita
+    { id: '9415102', name: 'Crissy Field', lat: 37.8100, lon: -122.4700 }, // Crissy Field
+    { id: '9415115', name: 'Exploratorium', lat: 37.8000, lon: -122.4000 }, // Exploratorium
+  ]
+
+  // Weather station locations (NDBC stations)
+  const WEATHER_STATIONS = [
+    { id: '46026', name: 'San Francisco', lat: 37.7544, lon: -122.8378 },
+    { id: '46042', name: 'Monterey Bay', lat: 36.7500, lon: -122.0000 },
+    { id: '46013', name: 'Bodega Bay', lat: 38.2333, lon: -123.3167 },
+    { id: '46012', name: 'Half Moon Bay', lat: 37.7500, lon: -122.8333 },
+    { id: '46014', name: 'Point Arena', lat: 38.9500, lon: -123.7333 },
+  ]
 
   const center = useMemo(() => {
     const c = HARBORS[harbor]
@@ -130,7 +162,9 @@ function App() {
     if (mapRef.current || !mapContainerRef.current || isInitializing) return
     
     try {
-      const styleUrl = 'https://demotiles.maplibre.org/style.json'
+      const styleUrl = mapStyle === 'satellite' 
+        ? 'https://api.maptiler.com/maps/satellite/style.json?key=get_your_own_OpIi9ZULNHzrESv6T2vL'
+        : 'https://api.maptiler.com/maps/streets/style.json?key=get_your_own_OpIi9ZULNHzrESv6T2vL'
       
     const map = new maplibregl.Map({
       container: mapContainerRef.current,
@@ -157,8 +191,12 @@ function App() {
         id: 'route-line',
         type: 'line',
         source: 'route',
+        layout: {
+          'line-join': 'round',
+          'line-cap': 'round'
+        },
         paint: {
-          'line-color': '#1d4ed8',
+          'line-color': '#3b82f6',
           'line-width': 3,
         },
       })
@@ -192,7 +230,32 @@ function App() {
   //       // })
       })
 
-      map.on('error', (e) => {
+      // Add route line source
+    map.on('load', () => {
+      map.addSource('route', {
+        type: 'geojson',
+        data: {
+          type: 'FeatureCollection',
+          features: []
+        }
+      })
+      
+      map.addLayer({
+        id: 'route-line',
+        type: 'line',
+        source: 'route',
+        layout: {
+          'line-join': 'round',
+          'line-cap': 'round'
+        },
+        paint: {
+          'line-color': '#3b82f6',
+          'line-width': 3
+        }
+      })
+    })
+
+    map.on('error', (e) => {
         console.error('Map error:', e)
         setError('Failed to load map. Please refresh the page.')
       })
@@ -207,6 +270,8 @@ function App() {
         mapRef.current = null
       }
       harborMarkersRef.current = []
+      tidalBuoyMarkersRef.current = []
+      weatherStationMarkersRef.current = []
     }
   }, [isInitializing, center])
 
@@ -233,20 +298,59 @@ function App() {
       waypointMarkersRef.current.push(marker)
     })
 
-    // Update route line
+    // Update route line - include harbor to first waypoint
     const src = map.getSource('route') as any
     if (src) {
+      const routeCoordinates = waypoints.length > 0 
+        ? [[HARBORS[harbor].lon, HARBORS[harbor].lat], ...waypoints]
+        : []
+      
       const line = {
         type: 'FeatureCollection',
-        features: waypoints.length >= 2 ? [
+        features: routeCoordinates.length >= 2 ? [
           {
             type: 'Feature',
-            geometry: { type: 'LineString', coordinates: waypoints },
+            geometry: { type: 'LineString', coordinates: routeCoordinates },
             properties: {},
           },
         ] : [],
       }
       src.setData(line)
+    } else {
+      // Re-add route source if it doesn't exist
+      const routeCoordinates = waypoints.length > 0 
+        ? [[HARBORS[harbor].lon, HARBORS[harbor].lat], ...waypoints]
+        : []
+        
+      map.addSource('route', {
+        type: 'geojson',
+        data: {
+          type: 'FeatureCollection',
+          features: routeCoordinates.length >= 2 ? [
+            {
+              type: 'Feature',
+              geometry: { type: 'LineString', coordinates: routeCoordinates },
+              properties: {},
+            },
+          ] : [],
+        }
+      })
+      
+      if (!map.getLayer('route-line')) {
+        map.addLayer({
+          id: 'route-line',
+          type: 'line',
+          source: 'route',
+          layout: {
+            'line-join': 'round',
+            'line-cap': 'round'
+          },
+          paint: {
+            'line-color': '#3b82f6',
+            'line-width': 3,
+          },
+        })
+      }
     }
   }, [waypoints])
 
@@ -286,6 +390,93 @@ function App() {
     fetchData()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [harbor])
+
+  // Update map style when changed
+  useEffect(() => {
+    if (!mapRef.current) return
+    
+    const styleUrl = mapStyle === 'satellite' 
+      ? 'https://api.maptiler.com/maps/satellite/style.json?key=get_your_own_OpIi9ZULNHzrESv6T2vL'
+      : 'https://api.maptiler.com/maps/streets/style.json?key=get_your_own_OpIi9ZULNHzrESv6T2vL'
+    
+    mapRef.current.setStyle(styleUrl)
+    
+    // Re-add route line layer after style change
+    mapRef.current.on('style.load', () => {
+      if (!mapRef.current) return
+      
+      mapRef.current.addSource('route', {
+        type: 'geojson',
+        data: {
+          type: 'FeatureCollection',
+          features: []
+        }
+      })
+      
+      mapRef.current.addLayer({
+        id: 'route-line',
+        type: 'line',
+        source: 'route',
+        layout: {
+          'line-join': 'round',
+          'line-cap': 'round'
+        },
+        paint: {
+          'line-color': '#3b82f6',
+          'line-width': 3,
+        },
+      })
+    })
+  }, [mapStyle])
+
+  // Show/hide tidal buoys
+  useEffect(() => {
+    const map = mapRef.current
+    if (!map) return
+
+    // Clear existing markers
+    tidalBuoyMarkersRef.current.forEach((m) => m.remove())
+    tidalBuoyMarkersRef.current = []
+
+    if (showTidalBuoys) {
+      TIDAL_BUOYS.forEach((buoy) => {
+        const el = document.createElement('div')
+        el.className = 'w-4 h-4 bg-orange-500 rounded-full border-2 border-white shadow-lg cursor-pointer flex items-center justify-center'
+        el.innerHTML = '🌊'
+        el.title = `${buoy.name} Tide Station (${buoy.id})`
+        
+        const marker = new maplibregl.Marker({ element: el })
+          .setLngLat([buoy.lon, buoy.lat] as LngLatLike)
+          .addTo(map)
+        
+        tidalBuoyMarkersRef.current.push(marker)
+      })
+    }
+  }, [showTidalBuoys])
+
+  // Show/hide weather stations
+  useEffect(() => {
+    const map = mapRef.current
+    if (!map) return
+
+    // Clear existing markers
+    weatherStationMarkersRef.current.forEach((m) => m.remove())
+    weatherStationMarkersRef.current = []
+
+    if (showWeatherStations) {
+      WEATHER_STATIONS.forEach((station) => {
+        const el = document.createElement('div')
+        el.className = 'w-3 h-3 bg-green-500 rounded-full border-2 border-white shadow-lg cursor-pointer'
+        el.title = `${station.name} Weather Station (${station.id})`
+        
+        const marker = new maplibregl.Marker({ element: el })
+          .setLngLat([station.lon, station.lat] as LngLatLike)
+          .addTo(map)
+        
+        weatherStationMarkersRef.current.push(marker)
+      })
+    }
+  }, [showWeatherStations])
 
   // Initialize app
   useEffect(() => {
@@ -359,6 +550,15 @@ function App() {
                   <option value="satellite">Satellite</option>
                 </select>
               </div> */}
+
+              {/* Dark Mode Toggle */}
+              <button
+                onClick={() => setIsDarkMode(!isDarkMode)}
+                className="bg-gray-600 text-white px-4 py-2 rounded-md hover:bg-gray-700 text-sm flex items-center space-x-2"
+              >
+                <span>{isDarkMode ? '☀️' : '🌙'}</span>
+                <span>{isDarkMode ? 'Light' : 'Dark'}</span>
+              </button>
 
               {/* Refresh Button */}
               <button
@@ -1334,9 +1534,9 @@ function App() {
                                     boxShadow: '0 0 10px rgba(0,0,0,0.3), 0 0 20px rgba(255,255,255,0.5)'
                                   }}
                                 />
-                              )}
-                            </div>
-                            
+              )}
+            </div>
+
                             {/* Temperature labels below */}
                             <div className="flex justify-between text-xs text-gray-600">
                               <span>{temperatureUnit === 'celsius' ? '-20°C' : '-4°F'}</span>
@@ -1511,11 +1711,195 @@ function App() {
                     style={{ minHeight: '384px' }}
                   />
               </div>
+              
+              {/* Map Options */}
+              <div className="p-4 border-t border-gray-200 bg-gray-50">
+                <h3 className="text-sm font-semibold text-gray-900 mb-3">🗺️ Map Options</h3>
+                
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                  {/* Map Style */}
+                  <div className="space-y-2">
+                    <h4 className="text-xs font-medium text-gray-700">Map Style</h4>
+                    <div className="space-y-1">
+                      <label className="flex items-center">
+                        <input
+                          type="radio"
+                          name="mapStyle"
+                          value="streets"
+                          checked={mapStyle === 'streets'}
+                          onChange={(e) => setMapStyle(e.target.value as 'streets' | 'satellite')}
+                          className="mr-1"
+                        />
+                        <span className="text-xs">🗺️ Streets</span>
+                      </label>
+                      <label className="flex items-center">
+                        <input
+                          type="radio"
+                          name="mapStyle"
+                          value="satellite"
+                          checked={mapStyle === 'satellite'}
+                          onChange={(e) => setMapStyle(e.target.value as 'streets' | 'satellite')}
+                          className="mr-1"
+                        />
+                        <span className="text-xs">🛰️ Satellite</span>
+                      </label>
+                    </div>
+                  </div>
+
+                  {/* Tidal Buoys */}
+                  <div className="space-y-2">
+                    <h4 className="text-xs font-medium text-gray-700">Tide Data</h4>
+                    <label className="flex items-center">
+                      <input
+                        type="checkbox"
+                        checked={showTidalBuoys}
+                        onChange={(e) => setShowTidalBuoys(e.target.checked)}
+                        className="mr-1"
+                      />
+                      <span className="text-xs">🌊 Tidal Buoys</span>
+                    </label>
+                  </div>
+
+                  {/* Weather Stations */}
+                  <div className="space-y-2">
+                    <h4 className="text-xs font-medium text-gray-700">Weather</h4>
+                    <label className="flex items-center">
+                      <input
+                        type="checkbox"
+                        checked={showWeatherStations}
+                        onChange={(e) => setShowWeatherStations(e.target.checked)}
+                        className="mr-1"
+                      />
+                      <span className="text-xs">🌤️ Weather</span>
+                    </label>
+                  </div>
+
+                  {/* Sailing Features */}
+                  <div className="space-y-2">
+                    <h4 className="text-xs font-medium text-gray-700">Sailing</h4>
+                    <div className="space-y-1">
+                      <label className="flex items-center">
+                        <input
+                          type="checkbox"
+                          checked={showShippingLanes}
+                          onChange={(e) => setShowShippingLanes(e.target.checked)}
+                          className="mr-1"
+                        />
+                        <span className="text-xs">🚢 Shipping Lanes</span>
+                      </label>
+                      <label className="flex items-center">
+                        <input
+                          type="checkbox"
+                          checked={showHazards}
+                          onChange={(e) => setShowHazards(e.target.checked)}
+                          className="mr-1"
+                        />
+                        <span className="text-xs">⚠️ Hazards</span>
+                      </label>
+                      <label className="flex items-center">
+                        <input
+                          type="checkbox"
+                          checked={showWaterDepths}
+                          onChange={(e) => setShowWaterDepths(e.target.checked)}
+                          className="mr-1"
+                        />
+                        <span className="text-xs">🌊 Water Depths</span>
+                      </label>
+                      <label className="flex items-center">
+                        <input
+                          type="checkbox"
+                          checked={showNavigationAids}
+                          onChange={(e) => setShowNavigationAids(e.target.checked)}
+                          className="mr-1"
+                        />
+                        <span className="text-xs">🧭 Navigation Aids</span>
+                      </label>
+                      <label className="flex items-center">
+                        <input
+                          type="checkbox"
+                          checked={showNauticalSigns}
+                          onChange={(e) => setShowNauticalSigns(e.target.checked)}
+                          className="mr-1"
+                        />
+                        <span className="text-xs">🚨 Nautical Signs</span>
+                      </label>
+                    </div>
+                  </div>
+
+                </div>
+
+                {/* Quick Preview Buttons */}
+                <div className="mt-4 pt-3 border-t border-gray-200">
+                  <div className="flex flex-wrap gap-1">
+                    <button
+                      onClick={() => {
+                        setMapStyle('streets')
+                        setShowTidalBuoys(true)
+                        setShowWeatherStations(false)
+                        setShowShippingLanes(false)
+                        setShowHazards(false)
+                        setShowWaterDepths(false)
+                        setShowNavigationAids(false)
+                        setShowNauticalSigns(false)
+                      }}
+                      className="px-2 py-1 text-xs bg-blue-100 text-blue-700 rounded hover:bg-blue-200"
+                    >
+                      🗺️ Streets + Tides
+                    </button>
+                    <button
+                      onClick={() => {
+                        setMapStyle('satellite')
+                        setShowTidalBuoys(false)
+                        setShowWeatherStations(true)
+                        setShowShippingLanes(false)
+                        setShowHazards(false)
+                        setShowWaterDepths(false)
+                        setShowNavigationAids(false)
+                        setShowNauticalSigns(false)
+                      }}
+                      className="px-2 py-1 text-xs bg-green-100 text-green-700 rounded hover:bg-green-200"
+                    >
+                      🛰️ Satellite + Weather
+                    </button>
+                    <button
+                      onClick={() => {
+                        setMapStyle('streets')
+                        setShowTidalBuoys(true)
+                        setShowWeatherStations(true)
+                        setShowShippingLanes(true)
+                        setShowHazards(true)
+                        setShowWaterDepths(true)
+                        setShowNavigationAids(true)
+                        setShowNauticalSigns(true)
+                      }}
+                      className="px-2 py-1 text-xs bg-purple-100 text-purple-700 rounded hover:bg-purple-200"
+                    >
+                      🧭 All Sailing Data
+                    </button>
+                    <button
+                      onClick={() => {
+                        setMapStyle('streets')
+                        setShowTidalBuoys(false)
+                        setShowWeatherStations(false)
+                        setShowShippingLanes(false)
+                        setShowHazards(false)
+                        setShowWaterDepths(false)
+                        setShowNavigationAids(false)
+                        setShowNauticalSigns(false)
+                      }}
+                      className="px-2 py-1 text-xs bg-gray-100 text-gray-700 rounded hover:bg-gray-200"
+                    >
+                      🗺️ Clean
+                    </button>
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
         </div>
         </div>
       </section>
+
     </div>
   )
 }

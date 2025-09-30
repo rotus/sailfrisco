@@ -16,6 +16,12 @@ const QuerySchema = z.object({
   range: z.string().default('24'),
 });
 
+// Clear cache endpoint for testing
+router.post('/tides/clear-cache', async (req: Request, res: Response) => {
+  cache.clear();
+  res.json({ message: 'Tides cache cleared' });
+});
+
 router.get('/tides', async (req: Request, res: Response) => {
   const parse = QuerySchema.safeParse(req.query);
   if (!parse.success) {
@@ -56,7 +62,7 @@ router.get('/tides', async (req: Request, res: Response) => {
         valueFt: Number(p.v),
         type: p.type === 'H' ? 'High' : p.type === 'L' ? 'Low' : undefined,
       }))
-      .filter((p) => new Date(p.time).getTime() >= now2.getTime() - 5 * 60 * 1000);
+      .filter((p) => new Date(p.time).getTime() >= now2.getTime() - 2 * 60 * 60 * 1000); // Include tides from 2 hours ago
 
     const normalized = {
       station: params.station,

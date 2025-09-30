@@ -9,12 +9,12 @@ import {
 
 type HarborKey = 'Sausalito' | 'Berkeley' | 'Alameda' | 'San Francisco' | 'Richmond'
 
-const HARBORS: Record<HarborKey, { lat: number; lon: number }> = {
-  'Sausalito': { lat: 37.8591, lon: -122.4853 },
-  'Berkeley': { lat: 37.8659, lon: -122.3114 },
-  'Alameda': { lat: 37.7726, lon: -122.2760 },
-  'San Francisco': { lat: 37.8060, lon: -122.4659 },
-  'Richmond': { lat: 37.9120, lon: -122.3593 },
+const HARBORS: Record<HarborKey, { lat: number; lon: number; tideStation: string }> = {
+  'Sausalito': { lat: 37.8591, lon: -122.4853, tideStation: '9414806' }, // Sausalito station
+  'Berkeley': { lat: 37.8659, lon: -122.3114, tideStation: '9414816' }, // Berkeley station
+  'Alameda': { lat: 37.7726, lon: -122.2760, tideStation: '9414750' }, // Alameda station
+  'San Francisco': { lat: 37.8060, lon: -122.4659, tideStation: '9414290' }, // San Francisco station
+  'Richmond': { lat: 37.9120, lon: -122.3593, tideStation: '9414849' }, // Richmond Inner Harbor
 }
 
 // Beaufort Wind Scale data with color coding and wave heights
@@ -263,11 +263,11 @@ function App() {
     try {
       setLoading(true)
       setError(null)
-      const { lat, lon } = HARBORS[harbor]
+      const { lat, lon, tideStation } = HARBORS[harbor]
       const timestamp = Date.now() // Cache busting
       const [marineRes, tidesRes] = await Promise.all([
         fetch(`/api/marine?lat=${lat}&lon=${lon}&t=${timestamp}`),
-        fetch(`/api/tides?station=9414290&t=${timestamp}`),
+        fetch(`/api/tides?station=${tideStation}&t=${timestamp}`),
       ])
       if (!marineRes.ok) throw new Error('Marine fetch failed')
       if (!tidesRes.ok) throw new Error('Tides fetch failed')

@@ -2,6 +2,10 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import maplibregl, { Map, Marker, type LngLatLike } from 'maplibre-gl'
 import 'maplibre-gl/dist/maplibre-gl.css'
 import './App.css'
+import { 
+  WiDaySunny, WiCloudy, WiRain, WiSnow, WiThunderstorm, WiFog,
+  WiNightClear, WiNightCloudy, WiNightRain, WiNightSnow, WiNightThunderstorm
+} from 'react-icons/wi'
 
 type HarborKey = 'Sausalito' | 'Berkeley' | 'Alameda' | 'San Francisco' | 'Richmond'
 
@@ -74,6 +78,7 @@ type MarineData = {
   humidity: number | null
   pressureHpa: number | null
   visibilityKm: number | null
+  weatherCode: number | null
   units: { 
     windSpeed: string | null
     windGust: string | null
@@ -106,7 +111,9 @@ function App() {
   const [isTidesExpanded, setIsTidesExpanded] = useState(true)
   const [isTemperatureExpanded, setIsTemperatureExpanded] = useState(true)
   const [beaufortLegendOption, setBeaufortLegendOption] = useState<'none' | 'option1' | 'option2' | 'option3'>('none')
-  const [temperatureVisualOption, setTemperatureVisualOption] = useState<'thermometer' | 'gauge' | 'dial' | 'bars' | 'radial'>('thermometer')
+  const [temperatureVisualOption] = useState<'gradient-bar'>('gradient-bar')
+  const [temperatureUnit, setTemperatureUnit] = useState<'celsius' | 'fahrenheit'>('fahrenheit')
+  const [pressureUnit, setPressureUnit] = useState<'hpa' | 'inhg' | 'mb'>('inhg')
   // const [mapStyle, setMapStyle] = useState<'streets' | 'satellite'>('streets')
 
   const mapRef = useRef<Map | null>(null)
@@ -402,7 +409,7 @@ function App() {
                 <div className="flex items-center justify-between">
                   <h3 className="text-lg font-semibold text-blue-900 flex items-center">
                     <span className="mr-2">🌬️</span>
-                    Wind & Weather
+                    Wind & Waves
                   </h3>
                   <div className="flex items-center space-x-2">
                     <span className="text-sm text-blue-600">
@@ -534,6 +541,19 @@ function App() {
                             />
                           )
                         })}
+                        
+                        {/* Warning emoji at 25 knots */}
+                        <div
+                          className="absolute top-0 text-lg z-30"
+                          style={{
+                            left: `${Math.min(useLogarithmic 
+                              ? (Math.log(1 + 25) / Math.log(1 + 64)) * 100
+                              : (25 / 64) * 100, 100)}%`,
+                            transform: 'translateX(-50%) translateY(-25px)'
+                          }}
+                        >
+                          ⚠️
+                        </div>
                         
                         {/* Current Wind Speed Indicator */}
                         {marine.windSpeedKts && !isNaN(marine.windSpeedKts) && (
@@ -1129,75 +1149,82 @@ function App() {
                     <span className="mr-2">🌡️</span>
                     Temperature
                   </h3>
-                  <div className="flex items-center space-x-4">
-                    <div className="flex items-center space-x-2">
-                      <span className="text-xs text-orange-700">Visual:</span>
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation()
-                          setTemperatureVisualOption('thermometer')
-                        }}
-                        className={`px-2 py-1 text-xs rounded ${
-                          temperatureVisualOption === 'thermometer'
-                            ? 'bg-orange-600 text-white' 
-                            : 'bg-orange-100 text-orange-700 hover:bg-orange-200'
-                        }`}
-                      >
-                        Thermometer
-                      </button>
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation()
-                          setTemperatureVisualOption('gauge')
-                        }}
-                        className={`px-2 py-1 text-xs rounded ${
-                          temperatureVisualOption === 'gauge'
-                            ? 'bg-orange-600 text-white' 
-                            : 'bg-orange-100 text-orange-700 hover:bg-orange-200'
-                        }`}
-                      >
-                        Gauge
-                      </button>
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation()
-                          setTemperatureVisualOption('dial')
-                        }}
-                        className={`px-2 py-1 text-xs rounded ${
-                          temperatureVisualOption === 'dial'
-                            ? 'bg-orange-600 text-white' 
-                            : 'bg-orange-100 text-orange-700 hover:bg-orange-200'
-                        }`}
-                      >
-                        Dial
-                      </button>
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation()
-                          setTemperatureVisualOption('bars')
-                        }}
-                        className={`px-2 py-1 text-xs rounded ${
-                          temperatureVisualOption === 'bars'
-                            ? 'bg-orange-600 text-white' 
-                            : 'bg-orange-100 text-orange-700 hover:bg-orange-200'
-                        }`}
-                      >
-                        Bars
-                      </button>
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation()
-                          setTemperatureVisualOption('radial')
-                        }}
-                        className={`px-2 py-1 text-xs rounded ${
-                          temperatureVisualOption === 'radial'
-                            ? 'bg-orange-600 text-white' 
-                            : 'bg-orange-100 text-orange-700 hover:bg-orange-200'
-                        }`}
-                      >
-                        Radial
-                      </button>
-                    </div>
+                      <div className="flex items-center space-x-4">
+                        <div className="flex items-center space-x-4">
+                          <div className="flex items-center space-x-4">
+                            <div className="flex items-center space-x-2">
+                              <span className="text-xs text-orange-700">Temp:</span>
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation()
+                                  setTemperatureUnit('celsius')
+                                }}
+                                className={`px-2 py-1 text-xs rounded ${
+                                  temperatureUnit === 'celsius'
+                                    ? 'bg-orange-600 text-white' 
+                                    : 'bg-orange-100 text-orange-700 hover:bg-orange-200'
+                                }`}
+                              >
+                                °C
+                              </button>
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation()
+                                  setTemperatureUnit('fahrenheit')
+                                }}
+                                className={`px-2 py-1 text-xs rounded ${
+                                  temperatureUnit === 'fahrenheit'
+                                    ? 'bg-orange-600 text-white' 
+                                    : 'bg-orange-100 text-orange-700 hover:bg-orange-200'
+                                }`}
+                              >
+                                °F
+                              </button>
+                            </div>
+                            <div className="flex items-center space-x-2">
+                              <span className="text-xs text-orange-700">Pressure:</span>
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation()
+                                  setPressureUnit('hpa')
+                                }}
+                                className={`px-2 py-1 text-xs rounded ${
+                                  pressureUnit === 'hpa'
+                                    ? 'bg-orange-600 text-white' 
+                                    : 'bg-orange-100 text-orange-700 hover:bg-orange-200'
+                                }`}
+                              >
+                                hPa
+                              </button>
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation()
+                                  setPressureUnit('inhg')
+                                }}
+                                className={`px-2 py-1 text-xs rounded ${
+                                  pressureUnit === 'inhg'
+                                    ? 'bg-orange-600 text-white' 
+                                    : 'bg-orange-100 text-orange-700 hover:bg-orange-200'
+                                }`}
+                              >
+                                inHg
+                              </button>
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation()
+                                  setPressureUnit('mb')
+                                }}
+                                className={`px-2 py-1 text-xs rounded ${
+                                  pressureUnit === 'mb'
+                                    ? 'bg-orange-600 text-white' 
+                                    : 'bg-orange-100 text-orange-700 hover:bg-orange-200'
+                                }`}
+                              >
+                                mb
+                              </button>
+                            </div>
+                          </div>
+                        </div>
                     <div className="flex items-center space-x-2">
                       <span className="text-sm text-orange-600">
                         {isTemperatureExpanded ? 'Collapse' : 'Expand'}
@@ -1227,65 +1254,121 @@ function App() {
                           Temperature Visualization
                         </div>
                         
-                        {temperatureVisualOption === 'thermometer' && (
-                          <div className="text-center">
-                            <div className="text-4xl font-bold text-orange-600 mb-2">
-                              {marine.temperatureC?.toFixed(1)}°C
+                        
+                        
+                        {temperatureVisualOption === 'gradient-bar' && (
+                          <div className="space-y-4">
+                            <div className="text-center mb-4">
+                              <div className="text-3xl font-bold text-orange-600 mb-1">
+                                {temperatureUnit === 'celsius' 
+                                  ? `${marine.temperatureC?.toFixed(1)}°C`
+                                  : `${((marine.temperatureC || 0) * 9/5 + 32).toFixed(1)}°F`
+                                }
+                              </div>
                             </div>
-                            <div className="text-lg text-orange-500">
-                              {((marine.temperatureC || 0) * 9/5 + 32).toFixed(1)}°F
+                            
+                            {/* Gradient Bar Visualization */}
+                            <div className="bg-white rounded-lg p-4 border border-orange-200">
+                              <div className="text-sm font-medium text-orange-800 mb-3 text-center">Temperature Scale</div>
+                              
+                              {/* Temperature scale with labels outside */}
+                              <div className="space-y-2">
+                                {/* Temperature labels above */}
+                                <div className="flex justify-between text-xs text-gray-600">
+                                  <span>{temperatureUnit === 'celsius' ? '-20°C' : '-4°F'}</span>
+                                  <span>{temperatureUnit === 'celsius' ? '0°C' : '32°F'}</span>
+                                  <span>{temperatureUnit === 'celsius' ? '20°C' : '68°F'}</span>
+                                  <span>{temperatureUnit === 'celsius' ? '40°C' : '104°F'}</span>
+                                </div>
+                                
+                                {/* Gradient bar */}
+                                <div className="relative h-8 bg-gradient-to-r from-blue-500 via-green-400 via-yellow-400 via-orange-400 to-red-500 rounded-full overflow-hidden">
+                                  {/* Low temperature indicator (blue) */}
+                                  <div 
+                                    className="absolute top-0 w-1 h-full bg-blue-600 border border-blue-800 shadow-lg z-20 rounded-full"
+                                    style={{
+                                      left: `${Math.max(0, Math.min(100, ((15 + 20) / 60) * 100))}%`,
+                                      transform: 'translateX(-50%)'
+                                    }}
+                                  />
+                                  
+                                  {/* High temperature indicator (red) */}
+                                  <div 
+                                    className="absolute top-0 w-1 h-full bg-red-600 border border-red-800 shadow-lg z-20 rounded-full"
+                                    style={{
+                                      left: `${Math.max(0, Math.min(100, ((25 + 20) / 60) * 100))}%`,
+                                      transform: 'translateX(-50%)'
+                                    }}
+                                  />
+                                  
+                                  {/* Current temperature indicator (white) */}
+                                  {marine.temperatureC && (
+                                    <div 
+                                      className="absolute top-0 w-2 h-full bg-white border-2 border-gray-600 shadow-lg z-10 rounded-full"
+                                      style={{
+                                        left: `${Math.max(0, Math.min(100, ((marine.temperatureC + 20) / 60) * 100))}%`,
+                                        transform: 'translateX(-50%)'
+                                      }}
+                                    />
+                                  )}
+                                </div>
+                                
+                                {/* Temperature labels below */}
+                                <div className="flex justify-between text-xs text-gray-600">
+                                  <span>Freezing</span>
+                                  <span>Cold</span>
+                                  <span>Comfortable</span>
+                                  <span>Hot</span>
+                                </div>
+                                
+                                {/* Temperature indicators legend */}
+                                <div className="flex justify-center items-center space-x-4 mt-2 text-xs">
+                                  <div className="flex items-center space-x-1">
+                                    <div className="w-3 h-3 bg-blue-600 rounded-full border border-blue-800"></div>
+                                    <span className="text-gray-600">Low: {temperatureUnit === 'celsius' ? '15°C' : '59°F'}</span>
+                                  </div>
+                                  <div className="flex items-center space-x-1">
+                                    <div className="w-3 h-3 bg-white border-2 border-gray-600 rounded-full"></div>
+                                    <span className="text-gray-600">Current</span>
+                                  </div>
+                                  <div className="flex items-center space-x-1">
+                                    <div className="w-3 h-3 bg-red-600 rounded-full border border-red-800"></div>
+                                    <span className="text-gray-600">High: {temperatureUnit === 'celsius' ? '25°C' : '77°F'}</span>
+                                  </div>
+                                </div>
+                                
+                              </div>
                             </div>
-                            <div className="text-sm text-gray-600 mt-2">🌡️ Thermometer Style</div>
                           </div>
                         )}
                         
-                        {temperatureVisualOption === 'gauge' && (
-                          <div className="text-center">
-                            <div className="text-4xl font-bold text-orange-600 mb-2">
-                              {marine.temperatureC?.toFixed(1)}°C
-                            </div>
-                            <div className="text-lg text-orange-500">
-                              {((marine.temperatureC || 0) * 9/5 + 32).toFixed(1)}°F
-                            </div>
-                            <div className="text-sm text-gray-600 mt-2">📊 Gauge Style</div>
+                        {/* Weather Visualization */}
+                        <div className="bg-white rounded-lg p-4 border border-orange-200">
+                          <div className="text-sm font-medium text-orange-800 mb-3 text-center">
+                            Weather Forecast
                           </div>
-                        )}
-                        
-                        {temperatureVisualOption === 'dial' && (
-                          <div className="text-center">
-                            <div className="text-4xl font-bold text-orange-600 mb-2">
-                              {marine.temperatureC?.toFixed(1)}°C
+                          
+                          <div className="space-y-3">
+                            <div className="grid grid-cols-6 gap-2">
+                              {[1, 2, 3, 4, 5, 6].map((hour) => {
+                                const WeatherIcon = getWeatherIcon(marine.weatherCode, isNightTime())
+                                return (
+                                  <div key={hour} className="text-center p-1 bg-gray-50 rounded">
+                                    <div className="text-lg mb-1">
+                                      <WeatherIcon className="mx-auto text-blue-500" />
+                                    </div>
+                                    <div className="text-xs text-gray-600">
+                                      +{hour}h
+                                    </div>
+                                  </div>
+                                )
+                              })}
                             </div>
-                            <div className="text-lg text-orange-500">
-                              {((marine.temperatureC || 0) * 9/5 + 32).toFixed(1)}°F
+                            <div className="text-xs text-gray-500 text-center">
+                              Forecast based on current conditions
                             </div>
-                            <div className="text-sm text-gray-600 mt-2">🔄 Dial Style</div>
                           </div>
-                        )}
-                        
-                        {temperatureVisualOption === 'bars' && (
-                          <div className="text-center">
-                            <div className="text-4xl font-bold text-orange-600 mb-2">
-                              {marine.temperatureC?.toFixed(1)}°C
-                            </div>
-                            <div className="text-lg text-orange-500">
-                              {((marine.temperatureC || 0) * 9/5 + 32).toFixed(1)}°F
-                            </div>
-                            <div className="text-sm text-gray-600 mt-2">📊 Bars Style</div>
-                          </div>
-                        )}
-                        
-                        {temperatureVisualOption === 'radial' && (
-                          <div className="text-center">
-                            <div className="text-4xl font-bold text-orange-600 mb-2">
-                              {marine.temperatureC?.toFixed(1)}°C
-                            </div>
-                            <div className="text-lg text-orange-500">
-                              {((marine.temperatureC || 0) * 9/5 + 32).toFixed(1)}°F
-                            </div>
-                            <div className="text-sm text-gray-600 mt-2">⭕ Radial Style</div>
-                          </div>
-                        )}
+                        </div>
                       </div>
 
                       {/* Temperature Data - 5 Most Important Sailing Metrics */}
@@ -1314,7 +1397,13 @@ function App() {
                           <span className="text-sm font-medium text-orange-800">Pressure</span>
                           <span className="text-lg font-semibold text-orange-600">
                             {marine.pressureHpa !== null && !isNaN(marine.pressureHpa) 
-                              ? `${marine.pressureHpa.toFixed(0)} hPa`
+                              ? (() => {
+                                  const pressure = marine.pressureHpa!
+                                  if (pressureUnit === 'hpa') return `${pressure.toFixed(0)} hPa`
+                                  if (pressureUnit === 'inhg') return `${(pressure * 0.02953).toFixed(2)} inHg`
+                                  if (pressureUnit === 'mb') return `${pressure.toFixed(0)} mb`
+                                  return `${pressure.toFixed(0)} hPa`
+                                })()
                               : 'N/A'
                             }
                           </span>
@@ -1323,10 +1412,15 @@ function App() {
                         <div className="flex justify-between items-center">
                           <span className="text-sm font-medium text-orange-800">Visibility</span>
                           <span className="text-lg font-semibold text-orange-600">
-                            {marine.visibilityKm !== null && !isNaN(marine.visibilityKm) 
-                              ? `${(marine.visibilityKm * 0.621371).toFixed(1)} miles`
-                              : 'N/A'
-                            }
+                      {marine.visibilityKm !== null && !isNaN(marine.visibilityKm) 
+                        ? (() => {
+                            const miles = marine.visibilityKm * 0.621371;
+                            // Cap visibility at reasonable maximum (e.g., 50 miles)
+                            const cappedMiles = Math.min(miles, 50);
+                            return `${cappedMiles.toFixed(1)} mi`;
+                          })()
+                        : 'N/A'
+                      }
                           </span>
                         </div>
                         
@@ -1468,4 +1562,63 @@ function getWindDirection(degrees: number | null | undefined): string {
   const directions = ['N', 'NNE', 'NE', 'ENE', 'E', 'ESE', 'SE', 'SSE', 'S', 'SSW', 'SW', 'WSW', 'W', 'WNW', 'NW', 'NNW']
   const index = Math.round(degrees / 22.5) % 16
   return directions[index] || 'N/A'
+}
+
+// Weather code to icon mapping (WMO Weather codes)
+function getWeatherIcon(weatherCode: number | null, isNight: boolean = false) {
+  if (weatherCode === null) return WiCloudy
+  
+  const weatherIcons = {
+    // Clear sky
+    0: isNight ? WiNightClear : WiDaySunny,
+    // Mainly clear
+    1: isNight ? WiNightCloudy : WiCloudy,
+    // Partly cloudy
+    2: isNight ? WiNightCloudy : WiCloudy,
+    // Overcast
+    3: WiCloudy,
+    // Fog
+    45: WiFog,
+    48: WiFog,
+    // Drizzle
+    51: WiRain,
+    53: WiRain,
+    55: WiRain,
+    // Freezing drizzle
+    56: WiSnow,
+    57: WiSnow,
+    // Rain
+    61: isNight ? WiNightRain : WiRain,
+    63: isNight ? WiNightRain : WiRain,
+    65: isNight ? WiNightRain : WiRain,
+    // Freezing rain
+    66: WiSnow,
+    67: WiSnow,
+    // Snow
+    71: isNight ? WiNightSnow : WiSnow,
+    73: isNight ? WiNightSnow : WiSnow,
+    75: isNight ? WiNightSnow : WiSnow,
+    // Snow grains
+    77: WiSnow,
+    // Rain showers
+    80: isNight ? WiNightRain : WiRain,
+    81: isNight ? WiNightRain : WiRain,
+    82: isNight ? WiNightRain : WiRain,
+    // Snow showers
+    85: isNight ? WiNightSnow : WiSnow,
+    86: isNight ? WiNightSnow : WiSnow,
+    // Thunderstorm
+    95: isNight ? WiNightThunderstorm : WiThunderstorm,
+    96: isNight ? WiNightThunderstorm : WiThunderstorm,
+    99: isNight ? WiNightThunderstorm : WiThunderstorm,
+  }
+  
+  return weatherIcons[weatherCode as keyof typeof weatherIcons] || WiCloudy
+}
+
+
+// Check if it's night time (simplified)
+function isNightTime(): boolean {
+  const hour = new Date().getHours()
+  return hour < 6 || hour > 18
 }

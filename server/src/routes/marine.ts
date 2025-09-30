@@ -32,7 +32,7 @@ router.get('/marine', async (req: Request, res: Response) => {
     const params = {
       latitude: lat,
       longitude: lon,
-      hourly: 'wind_speed_10m,wind_gusts_10m,wind_direction_10m,temperature_2m,relative_humidity_2m,pressure_msl,visibility',
+      hourly: 'wind_speed_10m,wind_gusts_10m,wind_direction_10m,temperature_2m,relative_humidity_2m,pressure_msl,visibility,weather_code',
       timezone: 'auto',
     } as const;
 
@@ -47,6 +47,7 @@ router.get('/marine', async (req: Request, res: Response) => {
     const humidity = data.hourly?.relative_humidity_2m?.[i] ?? null;
     const pressureHpa = data.hourly?.pressure_msl?.[i] ?? null;
     const visibilityKm = data.hourly?.visibility?.[i] ?? null;
+    const weatherCode = data.hourly?.weather_code?.[i] ?? null;
     
     const normalized = {
       lat,
@@ -59,6 +60,7 @@ router.get('/marine', async (req: Request, res: Response) => {
       humidity: humidity,
       pressureHpa: pressureHpa,
       visibilityKm: visibilityKm,
+      weatherCode: weatherCode,
       waveHeightM: null,
       units: {
         windSpeed: 'kts',

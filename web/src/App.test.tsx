@@ -1,5 +1,5 @@
 import { render, screen, fireEvent, waitFor } from '@testing-library/react'
-import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import App from './App'
 
 // Mock fetch globally
@@ -8,6 +8,21 @@ globalThis.fetch = mockFetch
 
 // Mock MapLibre GL
 vi.mock('maplibre-gl', () => ({
+  default: {
+    Map: vi.fn(() => ({
+      on: vi.fn(),
+      addSource: vi.fn(),
+      addLayer: vi.fn(),
+      setCenter: vi.fn(),
+      setZoom: vi.fn(),
+      remove: vi.fn(),
+    })),
+    Marker: vi.fn(() => ({
+      setLngLat: vi.fn(),
+      addTo: vi.fn(),
+      remove: vi.fn(),
+    })),
+  },
   Map: vi.fn(() => ({
     on: vi.fn(),
     addSource: vi.fn(),
@@ -33,6 +48,7 @@ vi.mock('react-icons/wi', () => ({
 describe('App Component', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    vi.useFakeTimers()
     // Mock successful API responses
     mockFetch
       .mockResolvedValueOnce({
@@ -63,18 +79,34 @@ describe('App Component', () => {
       })
   })
 
+  afterEach(() => {
+    vi.useRealTimers()
+  })
+
   // Helper function to wait for app initialization
   const waitForAppToLoad = async () => {
+    // Advance timers to trigger the setTimeout in the app
+    vi.advanceTimersByTime(1500)
+    // Wait for the app to load by checking for the main navigation
     await waitFor(() => {
-      expect(screen.queryByText('Loading SailFrisco...')).not.toBeInTheDocument()
-    }, { timeout: 3000 })
+      expect(screen.getByText('SailFrisco')).toBeInTheDocument()
+    }, { timeout: 1000 })
   }
 
   it('renders the main navigation bar', async () => {
     render(<App />)
-    await waitForAppToLoad()
     
-    expect(screen.getByText('SailFrisco')).toBeInTheDocument()
+    // Check if the loading screen is shown initially
+    expect(screen.getByText('Loading SailFrisco...')).toBeInTheDocument()
+    
+    // Advance timers to trigger the setTimeout in the app
+    vi.advanceTimersByTime(1500)
+    
+    // Wait for the app to load
+    await waitFor(() => {
+      expect(screen.getByText('SailFrisco')).toBeInTheDocument()
+    }, { timeout: 1000 })
+    
     expect(screen.getByText('🔄')).toBeInTheDocument()
   })
 
@@ -204,11 +236,22 @@ describe('App Component', () => {
 })
 
 describe('Beaufort Scale', () => {
+  beforeEach(() => {
+    vi.useFakeTimers()
+  })
+
+  afterEach(() => {
+    vi.useRealTimers()
+  })
+
   // Helper function to wait for app initialization
   const waitForAppToLoad = async () => {
+    // Advance timers to trigger the setTimeout in the app
+    vi.advanceTimersByTime(1500)
+    // Wait for the app to load by checking for the main navigation
     await waitFor(() => {
-      expect(screen.queryByText('Loading SailFrisco...')).not.toBeInTheDocument()
-    }, { timeout: 3000 })
+      expect(screen.getByText('SailFrisco')).toBeInTheDocument()
+    }, { timeout: 1000 })
   }
 
   it('displays correct wind scale visualization', async () => {
@@ -223,11 +266,22 @@ describe('Beaufort Scale', () => {
 })
 
 describe('Tide Visualization', () => {
+  beforeEach(() => {
+    vi.useFakeTimers()
+  })
+
+  afterEach(() => {
+    vi.useRealTimers()
+  })
+
   // Helper function to wait for app initialization
   const waitForAppToLoad = async () => {
+    // Advance timers to trigger the setTimeout in the app
+    vi.advanceTimersByTime(1500)
+    // Wait for the app to load by checking for the main navigation
     await waitFor(() => {
-      expect(screen.queryByText('Loading SailFrisco...')).not.toBeInTheDocument()
-    }, { timeout: 3000 })
+      expect(screen.getByText('SailFrisco')).toBeInTheDocument()
+    }, { timeout: 1000 })
   }
 
   it('displays tide chart', async () => {
@@ -241,12 +295,232 @@ describe('Tide Visualization', () => {
   })
 })
 
-describe('Temperature Visualization', () => {
-  // Helper function to wait for app initialization
+describe('Tide Card Dynamic Title', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    vi.useFakeTimers()
+  })
+
+  afterEach(() => {
+    vi.useRealTimers()
+  })
+
   const waitForAppToLoad = async () => {
+    // Advance timers to trigger the setTimeout in the app
+    vi.advanceTimersByTime(1500)
     await waitFor(() => {
       expect(screen.queryByText('Loading SailFrisco...')).not.toBeInTheDocument()
     }, { timeout: 3000 })
+  }
+
+  it('should display dynamic tide card title with current state and next tide', async () => {
+    // Mock tide data with past and future tides
+    const mockTideData = {
+      station: '9414290',
+      upcoming: [
+        {
+          time: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(), // 2 hours ago
+          valueFt: 2.1,
+          type: 'Low' as const
+        },
+        {
+          time: new Date(Date.now() + 3 * 60 * 60 * 1000).toISOString(), // 3 hours from now
+          valueFt: 4.8,
+          type: 'High' as const
+        }
+      ],
+      rawCount: 2
+    }
+
+    // Mock successful API responses
+    mockFetch
+      .mockResolvedValueOnce({
+        ok: true,
+        json: () => Promise.resolve({
+          data: {
+            windSpeedKts: 15.5,
+            windGustKts: 22.3,
+            windDirectionDeg: 180,
+            temperatureC: 18.5,
+            pressureHpa: 1013.25,
+            visibilityKm: 10.0,
+            weatherCode: 1,
+            waveHeightFt: 2.1
+          }
+        })
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: () => Promise.resolve({
+          data: mockTideData
+        })
+      })
+
+    render(<App />)
+    await waitForAppToLoad()
+
+    // Check for dynamic tide title (flexible time matching)
+    expect(screen.getByText(/Currently Flood ↗ - Next High in/)).toBeInTheDocument()
+  })
+
+  it('should handle tide data with no recent tides', async () => {
+    // Mock tide data with only future tides
+    const mockTideData = {
+      station: '9414290',
+      upcoming: [
+        {
+          time: new Date(Date.now() + 2 * 60 * 60 * 1000).toISOString(), // 2 hours from now
+          valueFt: 4.8,
+          type: 'High' as const
+        }
+      ],
+      rawCount: 1
+    }
+
+    // Mock successful API responses
+    mockFetch
+      .mockResolvedValueOnce({
+        ok: true,
+        json: () => Promise.resolve({
+          data: {
+            windSpeedKts: 15.5,
+            windGustKts: 22.3,
+            windDirectionDeg: 180,
+            temperatureC: 18.5,
+            pressureHpa: 1013.25,
+            visibilityKm: 10.0,
+            weatherCode: 1,
+            waveHeightFt: 2.1
+          }
+        })
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: () => Promise.resolve({
+          data: mockTideData
+        })
+      })
+
+    render(<App />)
+    await waitForAppToLoad()
+
+    // Should show Ebb state when next tide is High
+    expect(screen.getByText(/Currently Ebb ↘ - Next High in/)).toBeInTheDocument()
+  })
+
+  it('should display correct tide state for ebb tide', async () => {
+    // Mock tide data showing ebb (falling) tide
+    const mockTideData = {
+      station: '9414290',
+      upcoming: [
+        {
+          time: new Date(Date.now() - 1 * 60 * 60 * 1000).toISOString(), // 1 hour ago
+          valueFt: 4.8,
+          type: 'High' as const
+        },
+        {
+          time: new Date(Date.now() + 2 * 60 * 60 * 1000).toISOString(), // 2 hours from now
+          valueFt: 2.1,
+          type: 'Low' as const
+        }
+      ],
+      rawCount: 2
+    }
+
+    // Mock successful API responses
+    mockFetch
+      .mockResolvedValueOnce({
+        ok: true,
+        json: () => Promise.resolve({
+          data: {
+            windSpeedKts: 15.5,
+            windGustKts: 22.3,
+            windDirectionDeg: 180,
+            temperatureC: 18.5,
+            pressureHpa: 1013.25,
+            visibilityKm: 10.0,
+            weatherCode: 1,
+            waveHeightFt: 2.1
+          }
+        })
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: () => Promise.resolve({
+          data: mockTideData
+        })
+      })
+
+    render(<App />)
+    await waitForAppToLoad()
+
+    // Should show Ebb state when falling from high to low
+    expect(screen.getByText(/Currently Ebb ↘ - Next Low in/)).toBeInTheDocument()
+  })
+
+  it('should handle tide data with no future tides', async () => {
+    // Mock tide data with only past tides
+    const mockTideData = {
+      station: '9414290',
+      upcoming: [
+        {
+          time: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(), // 2 hours ago
+          valueFt: 4.8,
+          type: 'High' as const
+        }
+      ],
+      rawCount: 1
+    }
+
+    // Mock successful API responses
+    mockFetch
+      .mockResolvedValueOnce({
+        ok: true,
+        json: () => Promise.resolve({
+          data: {
+            windSpeedKts: 15.5,
+            windGustKts: 22.3,
+            windDirectionDeg: 180,
+            temperatureC: 18.5,
+            pressureHpa: 1013.25,
+            visibilityKm: 10.0,
+            weatherCode: 1,
+            waveHeightFt: 2.1
+          }
+        })
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: () => Promise.resolve({
+          data: mockTideData
+        })
+      })
+
+    render(<App />)
+    await waitForAppToLoad()
+
+    // Should show fallback title when no future tides
+    expect(screen.getByText(/Currently Unknown - Next Tide in/)).toBeInTheDocument()
+  })
+})
+
+describe('Temperature Visualization', () => {
+  beforeEach(() => {
+    vi.useFakeTimers()
+  })
+
+  afterEach(() => {
+    vi.useRealTimers()
+  })
+
+  // Helper function to wait for app initialization
+  const waitForAppToLoad = async () => {
+    // Advance timers to trigger the setTimeout in the app
+    vi.advanceTimersByTime(1500)
+    // Wait for the app to load by checking for the main navigation
+    await waitFor(() => {
+      expect(screen.getByText('SailFrisco')).toBeInTheDocument()
+    }, { timeout: 1000 })
   }
 
   it('displays temperature data', async () => {

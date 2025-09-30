@@ -728,9 +728,10 @@ function App() {
                         
                         let tideState = 'Unknown'
                         let arrow = ''
-                        let nextTideType = ''
+                        let nextTideType = 'Tide'
                         let nextTideTime = ''
                         
+                        // If we have recent tides and next tide, determine state
                         if (recentTides.length > 0 && nextTide) {
                           const recentTide = recentTides[0]
                           const recentValue = recentTide.valueFt
@@ -743,7 +744,18 @@ function App() {
                             tideState = 'Ebb'
                             arrow = '↘'
                           }
-                          
+                        } else if (nextTide) {
+                          // If no recent tides, try to determine from next tide type
+                          if (nextTide.type === 'High') {
+                            tideState = 'Ebb'
+                            arrow = '↘'
+                          } else if (nextTide.type === 'Low') {
+                            tideState = 'Flood'
+                            arrow = '↗'
+                          }
+                        }
+                        
+                        if (nextTide) {
                           nextTideType = nextTide.type || 'Tide'
                           const nextTideTimeDate = new Date(nextTide.time)
                           const timeDiff = nextTideTimeDate.getTime() - now.getTime()

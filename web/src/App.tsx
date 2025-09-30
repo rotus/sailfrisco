@@ -526,7 +526,7 @@ function App() {
                               style={{
                                 left: `${leftPercent}%`,
                                 width: `${widthPercent}%`,
-                                backgroundColor: isActive ? scale.color : `${scale.color}40`,
+                                backgroundColor: scale.color,
                                 borderRight: 'none', // Remove borders to eliminate gaps
                                 boxShadow: isActive ? `0 0 10px ${scale.color}80` : 'none',
                                 zIndex: isActive ? 10 : 1
@@ -605,7 +605,7 @@ function App() {
                               isCurrent ? 'beaufort-scale-current ring-2 ring-blue-500 shadow-lg' : 'hover:shadow-md'
                             }`}
                             style={{ 
-                              backgroundColor: isCurrent ? scale.color : `${scale.color}60`,
+                              backgroundColor: scale.color,
                               color: isCurrent ? '#1f2937' : `${scale.textColor}80`,
                               borderColor: isCurrent ? '#3b82f6' : 'transparent'
                             }}

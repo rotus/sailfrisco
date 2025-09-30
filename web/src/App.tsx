@@ -99,7 +99,7 @@ type TidesData = {
 
 function App() {
   const [harbor, setHarbor] = useState<HarborKey>('San Francisco')
-  const [boat, setBoat] = useState<'20ft' | '30ft' | '40ft'>('30ft')
+  const [boat, setBoat] = useState<'20ft' | '30ft' | '40ft' | '50ft'>('30ft')
   const [marine, setMarine] = useState<MarineData | null>(null)
   const [tides, setTides] = useState<TidesData | null>(null)
   const [loading, setLoading] = useState(false)
@@ -363,14 +363,27 @@ function App() {
     }
   }, [waypoints])
 
-  // Simple ETA estimate: great-circle distance and fixed hull speed by boat size
+  // Realistic sailing ETA with wind, tacking, and harbor considerations
   const etaSummary = useMemo(() => {
     if (waypoints.length < 2) return null
-    const nm = totalDistanceNm(waypoints)
-    const hullSpeed = boatHullSpeedKts(boat)
-    const hours = nm / Math.max(hullSpeed, 0.1)
-    return { distanceNm: nm, hours }
-  }, [waypoints, boat])
+    
+    const directDistance = totalDistanceNm(waypoints)
+    const windData = marine
+    
+    // Calculate realistic sailing time
+    const sailingTime = calculateRealisticSailingTime(
+      waypoints, 
+      boat, 
+      windData, 
+      harbor
+    )
+    
+    return { 
+      distanceNm: directDistance, 
+      hours: sailingTime.totalHours,
+      breakdown: sailingTime.breakdown
+    }
+  }, [waypoints, boat, marine, harbor])
 
   async function fetchData() {
     try {
@@ -414,15 +427,22 @@ function App() {
         : 'https://api.maptiler.com/maps/streets/style.json?key=get_your_own_OpIi9ZULNHzrESv6T2vL'
     }
     
-    try {
-      mapRef.current.setStyle(styleUrl)
-    } catch (error) {
-      console.error('Map style update error:', error)
-      setError('Failed to update map style. Please refresh the page.')
-    }
+    // Add a small delay to prevent rapid style changes
+    const timeoutId = setTimeout(() => {
+      try {
+        if (mapRef.current) {
+          mapRef.current.setStyle(styleUrl)
+        }
+      } catch (error) {
+        console.error('Map style update error:', error)
+        // Don't set error state, just log it
+      }
+    }, 100)
+    
+    return () => clearTimeout(timeoutId)
     
     // Re-add route line layer after style change
-    mapRef.current.on('style.load', () => {
+    mapRef.current?.on('style.load', () => {
       if (!mapRef.current) return
       
       mapRef.current.addSource('route', {
@@ -862,20 +882,35 @@ function App() {
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Navigation Bar */}
-      <nav className="bg-white shadow-sm border-b border-gray-200">
+      <nav className="bg-gradient-to-r from-slate-800 to-slate-900 shadow-lg border-b border-slate-700">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
             <div className="flex items-center">
-                <h1 className="text-xl font-bold text-blue-600">SailFrisco</h1>
-              </div>
+              <div className="flex items-center space-x-3">
+                <div className="w-10 h-10 bg-gradient-to-br from-blue-600 to-blue-700 rounded-lg flex items-center justify-center shadow-lg">
+                  <svg className="w-6 h-6 text-white" fill="currentColor" viewBox="0 0 24 24">
+                    {/* Hull - dark blue */}
+                    <path d="M6 19C6 19 8 17 12 17C16 17 18 19 18 19L17 21L7 21L6 19Z" fill="#1e40af"/>
+                    {/* Main sail - dark blue */}
+                    <path d="M12 3L18 15L12 15Z" fill="#1e40af"/>
+                    {/* Jib sail - light blue */}
+                    <path d="M12 3L6 12L12 12Z" fill="#3b82f6"/>
+                    {/* Wave lines underneath */}
+                    <path d="M5 19Q7 17 9 19T12 19T15 19T19 19" stroke="#3b82f6" strokeWidth="1" fill="none" opacity="0.7"/>
+                    <path d="M4 20Q6 18 8 20T12 20T16 20T20 20" stroke="#3b82f6" strokeWidth="1" fill="none" opacity="0.5"/>
+                  </svg>
+                </div>
+                <h1 className="text-xl font-bold text-white">SailFrisco</h1>
+            </div>
+            </div>
             
             {/* Controls */}
             <div className="flex items-center space-x-4">
             {/* Harbor Selection */}
               <div className="flex items-center space-x-2">
-                <label className="text-sm font-medium text-gray-700">Harbor:</label>
+                <label className="text-sm font-medium text-gray-300">Harbor:</label>
               <select
-                  className="p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
+                  className="p-2 border border-gray-600 bg-slate-700 text-white rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
                 value={harbor}
                 onChange={(e) => setHarbor(e.target.value as HarborKey)}
               >
@@ -887,15 +922,16 @@ function App() {
 
             {/* Boat Selection */}
               <div className="flex items-center space-x-2">
-                <label className="text-sm font-medium text-gray-700">Boat:</label>
+                <label className="text-sm font-medium text-gray-300">Boat:</label>
               <select
-                  className="p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
+                  className="p-2 border border-gray-600 bg-slate-700 text-white rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
                 value={boat}
                 onChange={(e) => setBoat(e.target.value as any)}
               >
                   <option value="20ft">20 ft</option>
                   <option value="30ft">30 ft</option>
                   <option value="40ft">40 ft</option>
+                  <option value="50ft">50 ft</option>
               </select>
             </div>
 
@@ -913,13 +949,13 @@ function App() {
               </div> */}
 
               {/* Dark Mode Toggle */}
-              <button
-                onClick={() => setIsDarkMode(!isDarkMode)}
-                className="bg-gray-600 text-white px-4 py-2 rounded-md hover:bg-gray-700 text-sm flex items-center space-x-2"
-              >
-                <span>{isDarkMode ? '☀️' : '🌙'}</span>
-                <span>{isDarkMode ? 'Light' : 'Dark'}</span>
-              </button>
+        <button
+          onClick={() => setIsDarkMode(!isDarkMode)}
+          className="bg-slate-600 text-white px-4 py-2 rounded-md hover:bg-slate-700 text-sm flex items-center space-x-2 transition-colors"
+        >
+          <span>{isDarkMode ? '☀️' : '🌙'}</span>
+          <span>{isDarkMode ? 'Light' : 'Dark'}</span>
+        </button>
 
               {/* Refresh Button */}
               <button
@@ -959,15 +995,25 @@ function App() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="space-y-0">
             {/* Weather/Wind Card */}
-            <div className="bg-gradient-to-br from-blue-50 to-blue-100 rounded-lg shadow-sm border border-blue-200">
+            <div className={`bg-gradient-to-br rounded-lg shadow-sm border transition-all duration-300 hover:shadow-md hover:scale-[1.01] ${
+              isWindExpanded 
+                ? 'from-blue-50 to-blue-100 border-blue-200 shadow-lg' 
+                : 'from-slate-50 to-slate-100 border-slate-200'
+            }`}>
               {/* Collapsible Header */}
               <div 
-                className="p-6 cursor-pointer hover:bg-blue-100 transition-colors duration-200"
+                className={`p-6 cursor-pointer transition-colors duration-200 ${
+                  isWindExpanded 
+                    ? 'hover:bg-blue-100' 
+                    : 'hover:bg-slate-100'
+                }`}
                 onClick={() => setIsWindExpanded(!isWindExpanded)}
               >
                 <div className="flex items-center justify-between">
-                  <h3 className="text-lg font-semibold text-blue-900 flex items-center">
-                    <span className="mr-2">🌬️</span>
+                  <h3 className="text-lg font-semibold text-slate-800 flex items-center">
+                    <svg className="w-5 h-5 mr-2 text-blue-600" fill="currentColor" viewBox="0 0 24 24">
+                      <path d="M19.35 10.04A7.49 7.49 0 0 0 12 4C9.11 4 6.6 5.64 5.35 8.04A5.994 5.994 0 0 0 0 14c0 3.31 2.69 6 6 6h13c2.76 0 5-2.24 5-5 0-2.64-2.05-4.78-4.65-4.96zM14 13v4h-4v-4H7l5-5 5 5h-3z" fill="currentColor"/>
+                    </svg>
                     {marine?.windSpeedKts && !isNaN(marine.windSpeedKts) && marine?.windGustKts && !isNaN(marine.windGustKts) && marine?.windDirectionDeg && !isNaN(marine.windDirectionDeg) ? (
                       <>
                         Winds of {marine.windSpeedKts.toFixed(1)} knots out of the {getWindDirection(marine.windDirectionDeg)}, gusting to {marine.windGustKts.toFixed(1)} knots with {(() => {
@@ -976,11 +1022,16 @@ function App() {
                         })()} waves
                       </>
                     ) : (
-                      'Wind & Waves'
+                      <div className="flex items-center space-x-2">
+                        <svg className="w-5 h-5 text-blue-600" fill="currentColor" viewBox="0 0 24 24">
+                          <path d="M19.35 10.04A7.49 7.49 0 0 0 12 4C9.11 4 6.6 5.64 5.35 8.04A5.994 5.994 0 0 0 0 14c0 3.31 2.69 6 6 6h13c2.76 0 5-2.24 5-5 0-2.64-2.05-4.78-4.65-4.96zM14 13v4h-4v-4H7l5-5 5 5h-3z" fill="currentColor"/>
+                        </svg>
+                        <span>Wind & Waves</span>
+                      </div>
                     )}
                   </h3>
                   <div className="flex items-center space-x-2">
-                    <span className="text-sm text-blue-600">
+                    <span className="text-sm text-slate-600">
                       {isWindExpanded ? 'Collapse' : 'Expand'}
                     </span>
                     <svg 
@@ -1265,16 +1316,20 @@ function App() {
             </div>
 
             {/* Tides Card */}
-            <div className="bg-gradient-to-br from-green-50 to-green-100 rounded-lg shadow-sm border border-green-200">
+            <div className={`bg-gradient-to-br rounded-lg shadow-sm border transition-all duration-300 hover:shadow-md hover:scale-[1.01] ${
+              isTidesExpanded 
+                ? 'from-cyan-50 to-cyan-100 border-cyan-200 shadow-lg' 
+                : 'from-slate-50 to-slate-100 border-slate-200'
+            }`}>
               {/* Collapsible Header */}
               <div 
-                className="p-6 cursor-pointer hover:bg-green-100 transition-colors duration-200"
+                className="p-6 cursor-pointer hover:bg-slate-100 transition-colors duration-200"
                 onClick={() => setIsTidesExpanded(!isTidesExpanded)}
               >
                 <div className="flex items-center justify-between">
                   <div className="flex items-center space-x-4">
-                    <h3 className="text-lg font-semibold text-green-900 flex items-center">
-                      <span className="mr-2">🌊</span>
+                    <h3 className="text-lg font-semibold text-slate-800 flex items-center">
+                      <svg className="w-5 h-5 mr-2 text-cyan-600" fill="currentColor" viewBox="0 0 24 24"><path d="M17 16.5c.83 0 1.5.67 1.5 1.5s-.67 1.5-1.5 1.5-1.5-.67-1.5-1.5.67-1.5 1.5-1.5zM3.5 18c0-.83.67-1.5 1.5-1.5s1.5.67 1.5 1.5-.67 1.5-1.5 1.5-1.5-.67-1.5-1.5zm6-2c0-.83.67-1.5 1.5-1.5s1.5.67 1.5 1.5-.67 1.5-1.5 1.5-1.5-.67-1.5-1.5zM17 12c.83 0 1.5.67 1.5 1.5s-.67 1.5-1.5 1.5-1.5-.67-1.5-1.5.67-1.5 1.5-1.5zM3.5 13.5c0-.83.67-1.5 1.5-1.5s1.5.67 1.5 1.5S5.83 15 5 15s-1.5-.67-1.5-1.5zM10 10c.83 0 1.5.67 1.5 1.5s-.67 1.5-1.5 1.5-1.5-.67-1.5-1.5.67-1.5 1.5-1.5z" stroke="currentColor" strokeWidth="0.5"/></svg>
                       {tides && tides.upcoming.length > 0 ? (() => {
                         const now = new Date()
                         const recentTides = tides.upcoming.filter(tide => {
@@ -1774,15 +1829,19 @@ function App() {
             </div>
 
             {/* Temperature Card */}
-            <div className="bg-gradient-to-br from-orange-50 to-orange-100 rounded-lg shadow-sm border border-orange-200">
+            <div className={`bg-gradient-to-br rounded-lg shadow-sm border transition-all duration-300 hover:shadow-md hover:scale-[1.01] ${
+              isTemperatureExpanded 
+                ? 'from-amber-50 to-amber-100 border-amber-200 shadow-lg' 
+                : 'from-slate-50 to-slate-100 border-slate-200'
+            }`}>
               {/* Collapsible Header */}
               <div 
-                className="p-6 cursor-pointer hover:bg-orange-100 transition-colors duration-200"
+                className="p-6 cursor-pointer hover:bg-slate-100 transition-colors duration-200"
                 onClick={() => setIsTemperatureExpanded(!isTemperatureExpanded)}
               >
                 <div className="flex items-center justify-between">
-                  <h3 className="text-lg font-semibold text-orange-900 flex items-center">
-                    <span className="mr-2">🌡️</span>
+                  <h3 className="text-lg font-semibold text-slate-800 flex items-center">
+                    <svg className="w-5 h-5 mr-2 text-amber-600" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2C11.45 2 11 2.45 11 3v10.5c-1.18.67-2 1.94-2 3.5 0 2.21 1.79 4 4 4s4-1.79 4-4c0-1.56-.82-2.83-2-3.5V3c0-.55-.45-1-1-1zm0 2v7h1V4h-1zm0 9.5c1.1 0 2 .9 2 2s-.9 2-2 2-2-.9-2-2 .9-2 2-2z" stroke="currentColor" strokeWidth="0.5"/></svg>
                     {marine?.temperatureC && !isNaN(marine.temperatureC) && marine?.weatherCode !== null ? (
                       <>
                         Currently {temperatureUnit === 'celsius' 
@@ -2028,9 +2087,20 @@ function App() {
                   )}
                 </div>
                 {etaSummary && (
-                  <div className="bg-gray-50 rounded-lg p-4">
-                    <div className="text-sm text-gray-600">ETA @ hull speed</div>
+                  <div className="bg-gray-50 rounded-lg p-4 space-y-2">
+                    <div className="text-sm text-gray-600">Realistic Sailing ETA</div>
                     <div className="text-xl font-bold text-gray-900">{etaSummary.hours.toFixed(1)} hours</div>
+                    {etaSummary.breakdown && (
+                      <div className="text-xs text-gray-500 space-y-1">
+                        <div>Harbor exit: {etaSummary.breakdown.harborExit.toFixed(1)}h</div>
+                        <div>Sailing: {etaSummary.breakdown.sailingTime.toFixed(1)}h</div>
+                        <div>Wind: {etaSummary.breakdown.windSpeed.toFixed(1)} kts {getWindDirection(etaSummary.breakdown.windDirection)}</div>
+                        <div>Efficiency: {(etaSummary.breakdown.efficiency * 100).toFixed(0)}%</div>
+                        {etaSummary.breakdown.tackingPenalty > 1 && (
+                          <div className="text-orange-600">Tacking penalty: +{((etaSummary.breakdown.tackingPenalty - 1) * 100).toFixed(0)}%</div>
+                        )}
+                      </div>
+                    )}
                   </div>
                 )}
                 <div className="flex space-x-2">
@@ -2261,19 +2331,223 @@ function App() {
         </div>
       </section>
 
+      {/* Footer */}
+      <footer className="bg-gray-800 text-white py-8 mt-12">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+            <div>
+              <div className="flex items-center space-x-2 mb-3">
+                <div className="w-8 h-8 bg-gradient-to-br from-blue-600 to-blue-700 rounded-lg flex items-center justify-center shadow-lg">
+                  <svg className="w-5 h-5 text-white" fill="currentColor" viewBox="0 0 24 24">
+                    {/* Hull - dark blue */}
+                    <path d="M6 19C6 19 8 17 12 17C16 17 18 19 18 19L17 21L7 21L6 19Z" fill="#1e40af"/>
+                    {/* Main sail - dark blue */}
+                    <path d="M12 3L18 15L12 15Z" fill="#1e40af"/>
+                    {/* Jib sail - light blue */}
+                    <path d="M12 3L6 12L12 12Z" fill="#3b82f6"/>
+                    {/* Wave lines underneath */}
+                    <path d="M5 19Q7 17 9 19T12 19T15 19T19 19" stroke="#3b82f6" strokeWidth="1" fill="none" opacity="0.7"/>
+                    <path d="M4 20Q6 18 8 20T12 20T16 20T20 20" stroke="#3b82f6" strokeWidth="1" fill="none" opacity="0.5"/>
+                  </svg>
+                </div>
+                <h5 className="text-blue-400 text-lg font-semibold">SailFrisco</h5>
+              </div>
+              <p className="text-gray-300 text-sm leading-relaxed">
+                Real-time marine weather, tides, and route planning for San Francisco Bay sailors. 
+                Track conditions, plan routes, and sail smarter with data-driven insights.
+              </p>
+            </div>
+            <div className="text-right">
+              <p className="text-gray-300 mb-2">
+                Built with <span className="text-blue-400">💙</span> for Bay Area sailors
+              </p>
+              <div className="text-xs text-gray-400 space-y-1">
+                <div>React + TypeScript • MapLibre GL • NOAA Data</div>
+                <div>Real-time weather • Tide predictions • Route planning</div>
+              </div>
+            </div>
+          </div>
+          
+          <div className="border-t border-gray-700 mt-6 pt-6">
+            <div className="flex flex-col sm:flex-row justify-between items-center text-sm text-gray-400">
+              <div className="flex items-center space-x-4 mb-4 sm:mb-0">
+                <span>🌊 Marine Weather</span>
+                <span>•</span>
+                <span>🌊 Tide Predictions</span>
+                <span>•</span>
+                <span>🗺️ Route Planning</span>
+              </div>
+              <div className="text-xs">
+                Data from NOAA • Weather from OpenWeatherMap • Tides from CO-OPS
+              </div>
+            </div>
+          </div>
+        </div>
+      </footer>
+
     </div>
   )
 }
 
 export default App
 
-function boatHullSpeedKts(size: '20ft' | '30ft' | '40ft'): number {
+function boatHullSpeedKts(size: '20ft' | '30ft' | '40ft' | '50ft'): number {
   // Simple fixed estimates
   switch (size) {
     case '20ft': return 5.4
     case '30ft': return 7.3
     case '40ft': return 8.5
+    case '50ft': return 9.2
   }
+}
+
+// Realistic sailing time calculation with wind, tacking, and harbor considerations
+function calculateRealisticSailingTime(
+  waypoints: [number, number][], 
+  boat: '20ft' | '30ft' | '40ft' | '50ft',
+  windData: MarineData | null,
+  harbor: HarborKey
+): { totalHours: number; breakdown: any } {
+  if (waypoints.length < 2) return { totalHours: 0, breakdown: {} }
+  
+  const hullSpeed = boatHullSpeedKts(boat)
+  const directDistance = totalDistanceNm(waypoints)
+  
+  // Harbor exit time (motoring through no-wake zones)
+  const harborExitTime = getHarborExitTime(harbor)
+  
+  // Wind analysis
+  const windSpeed = windData?.windSpeedKts || 0
+  const windDirection = windData?.windDirectionDeg || 0
+  
+  // Calculate sailing efficiency based on wind angle
+  const sailingEfficiency = calculateSailingEfficiency(waypoints, windDirection, windSpeed)
+  
+  // Tacking penalty (boats can't sail directly into wind)
+  const tackingPenalty = calculateTackingPenalty(waypoints, windDirection)
+  
+  // Realistic sailing speed (not hull speed, but actual sailing speed)
+  const sailingSpeed = calculateSailingSpeed(hullSpeed, windSpeed, sailingEfficiency)
+  
+  // Total time calculation
+  const sailingTime = (directDistance * tackingPenalty) / sailingSpeed
+  const totalTime = harborExitTime + sailingTime
+  
+  return {
+    totalHours: totalTime,
+    breakdown: {
+      harborExit: harborExitTime,
+      sailingTime: sailingTime,
+      tackingPenalty: tackingPenalty,
+      sailingSpeed: sailingSpeed,
+      windSpeed: windSpeed,
+      windDirection: windDirection,
+      efficiency: sailingEfficiency
+    }
+  }
+}
+
+// Time to motor out of harbor through no-wake zones
+function getHarborExitTime(harbor: HarborKey): number {
+  const harborExitTimes = {
+    'San Francisco': 0.5, // 30 min through busy harbor
+    'Sausalito': 0.3,    // 20 min through Richardson Bay
+    'Berkeley': 0.4,     // 25 min through Berkeley Marina
+    'Alameda': 0.6,      // 35 min through Oakland Estuary
+    'Richmond': 0.4      // 25 min through Richmond Harbor
+  }
+  return harborExitTimes[harbor] || 0.3
+}
+
+// Calculate how efficiently we can sail based on wind angle
+function calculateSailingEfficiency(
+  waypoints: [number, number][], 
+  windDirection: number, 
+  windSpeed: number
+): number {
+  if (windSpeed < 3) return 0.3 // Very light wind, mostly motoring
+  
+  // Calculate average course direction
+  let totalBearing = 0
+  for (let i = 1; i < waypoints.length; i++) {
+    const bearing = calculateBearing(waypoints[i-1], waypoints[i])
+    totalBearing += bearing
+  }
+  const avgCourse = totalBearing / (waypoints.length - 1)
+  
+  // Wind angle relative to course (0° = headwind, 180° = tailwind)
+  const windAngle = Math.abs(windDirection - avgCourse)
+  const normalizedAngle = Math.min(windAngle, 360 - windAngle) / 180
+  
+  // Sailing efficiency based on wind angle
+  if (normalizedAngle < 0.1) return 0.1 // Dead upwind - very slow
+  if (normalizedAngle < 0.3) return 0.4 // Close hauled - slow
+  if (normalizedAngle < 0.6) return 0.7 // Beam reach - good
+  if (normalizedAngle < 0.8) return 0.9 // Broad reach - excellent
+  return 0.8 // Running - good but not as fast as broad reach
+}
+
+// Calculate tacking penalty (how much extra distance due to zigzagging)
+function calculateTackingPenalty(
+  waypoints: [number, number][], 
+  windDirection: number
+): number {
+  if (waypoints.length < 2) return 1
+  
+  // Calculate if we need to tack (sailing upwind)
+  const courseBearing = calculateBearing(waypoints[0], waypoints[waypoints.length - 1])
+  const windAngle = Math.abs(windDirection - courseBearing)
+  const normalizedAngle = Math.min(windAngle, 360 - windAngle) / 180
+  
+  // If sailing upwind (wind angle < 45°), add tacking penalty
+  if (normalizedAngle < 0.25) {
+    return 1.4 // 40% extra distance due to tacking
+  }
+  
+  return 1.0 // No tacking penalty
+}
+
+// Calculate realistic sailing speed based on wind and boat
+function calculateSailingSpeed(
+  hullSpeed: number, 
+  windSpeed: number, 
+  efficiency: number
+): number {
+  // Base speed is hull speed
+  let speed = hullSpeed
+  
+  // Adjust for wind strength
+  if (windSpeed < 5) {
+    speed *= 0.6 // Light wind - slow
+  } else if (windSpeed < 15) {
+    speed *= 0.8 // Moderate wind - good
+  } else if (windSpeed < 25) {
+    speed *= 0.9 // Strong wind - very good
+  } else {
+    speed *= 0.7 // Too much wind - reefed sails
+  }
+  
+  // Apply sailing efficiency
+  speed *= efficiency
+  
+  // Minimum speed (motoring)
+  return Math.max(speed, hullSpeed * 0.3)
+}
+
+// Calculate bearing between two points
+function calculateBearing(from: [number, number], to: [number, number]): number {
+  const [lon1, lat1] = from
+  const [lon2, lat2] = to
+  
+  const dLon = (lon2 - lon1) * Math.PI / 180
+  const lat1Rad = lat1 * Math.PI / 180
+  const lat2Rad = lat2 * Math.PI / 180
+  
+  const y = Math.sin(dLon) * Math.cos(lat2Rad)
+  const x = Math.cos(lat1Rad) * Math.sin(lat2Rad) - Math.sin(lat1Rad) * Math.cos(lat2Rad) * Math.cos(dLon)
+  
+  let bearing = Math.atan2(y, x) * 180 / Math.PI
+  return (bearing + 360) % 360
 }
 
 function totalDistanceNm(coords: [number, number][]): number {
@@ -2283,6 +2557,7 @@ function totalDistanceNm(coords: [number, number][]): number {
   }
   return total
 }
+
 
 function haversineNm(a: [number, number], b: [number, number]): number {
   const R_km = 6371

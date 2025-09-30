@@ -192,6 +192,61 @@
   box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.3), 0 4px 6px -2px rgba(0, 0, 0, 0.1) !important;
 }
 
+/* Footer Dark Mode */
+.dark .bg-gray-800 {
+  background-color: #111827 !important;
+}
+
+.dark .text-blue-400 {
+  color: #60a5fa !important;
+}
+
+.dark .text-gray-300 {
+  color: #d1d5db !important;
+}
+
+.dark .text-gray-400 {
+  color: #9ca3af !important;
+}
+
+.dark .border-gray-700 {
+  border-color: #374151 !important;
+}
+
+/* Card Dark Mode - Consistent Slate Theme */
+.dark .bg-gradient-to-br.from-slate-50.to-slate-100 {
+  background: linear-gradient(to bottom right, #1e293b, #334155) !important;
+}
+
+.dark .border-slate-200 {
+  border-color: #475569 !important;
+}
+
+.dark .text-slate-800 {
+  color: #f1f5f9 !important;
+}
+
+.dark .text-slate-600 {
+  color: #cbd5e1 !important;
+}
+
+.dark .hover\:bg-slate-100:hover {
+  background-color: #334155 !important;
+}
+
+/* Preserve glow effects while updating colors */
+.dark .text-blue-600 {
+  color: #3b82f6 !important;
+}
+
+.dark .text-green-600 {
+  color: #10b981 !important;
+}
+
+.dark .text-orange-600 {
+  color: #f59e0b !important;
+}
+
 .dark .bg-white .border-gray-200 {
   border-color: #374151 !important;
 }

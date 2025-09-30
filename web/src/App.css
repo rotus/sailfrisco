@@ -89,3 +89,53 @@
     opacity: 0.9;
   }
 }
+
+/* Dark Mode Styles */
+.dark {
+  color-scheme: dark;
+}
+
+.dark .bg-white {
+  background-color: #1f2937 !important;
+  color: #f9fafb !important;
+}
+
+.dark .bg-gray-50 {
+  background-color: #111827 !important;
+}
+
+.dark .bg-gray-100 {
+  background-color: #1f2937 !important;
+}
+
+.dark .text-gray-900 {
+  color: #f9fafb !important;
+}
+
+.dark .text-gray-700 {
+  color: #d1d5db !important;
+}
+
+.dark .text-gray-600 {
+  color: #9ca3af !important;
+}
+
+.dark .border-gray-200 {
+  border-color: #374151 !important;
+}
+
+.dark .bg-blue-600 {
+  background-color: #3b82f6 !important;
+}
+
+.dark .bg-blue-700 {
+  background-color: #2563eb !important;
+}
+
+.dark .bg-gray-600 {
+  background-color: #4b5563 !important;
+}
+
+.dark .bg-gray-700 {
+  background-color: #374151 !important;
+}

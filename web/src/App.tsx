@@ -116,6 +116,15 @@ function App() {
   const [showTidalBuoys, setShowTidalBuoys] = useState(false)
   const [showWeatherStations, setShowWeatherStations] = useState(false)
   const [isDarkMode, setIsDarkMode] = useState(false)
+
+  // Apply dark mode styles
+  useEffect(() => {
+    if (isDarkMode) {
+      document.documentElement.classList.add('dark')
+    } else {
+      document.documentElement.classList.remove('dark')
+    }
+  }, [isDarkMode])
   const [showShippingLanes, setShowShippingLanes] = useState(false)
   const [showHazards, setShowHazards] = useState(false)
   const [showWaterDepths, setShowWaterDepths] = useState(false)
@@ -445,6 +454,11 @@ function App() {
         el.innerHTML = '🌊'
         el.title = `${buoy.name} Tide Station (${buoy.id})`
         
+        // Add click handler for detailed info
+        el.addEventListener('click', () => {
+          alert(`🌊 ${buoy.name} Tide Station\n\nStation ID: ${buoy.id}\nCoordinates: ${buoy.lat.toFixed(4)}°N, ${buoy.lon.toFixed(4)}°W\n\nThis NOAA tide station provides real-time water level data for accurate tide predictions.`)
+        })
+        
         const marker = new maplibregl.Marker({ element: el })
           .setLngLat([buoy.lon, buoy.lat] as LngLatLike)
           .addTo(map)
@@ -468,6 +482,11 @@ function App() {
         const el = document.createElement('div')
         el.className = 'w-3 h-3 bg-green-500 rounded-full border-2 border-white shadow-lg cursor-pointer'
         el.title = `${station.name} Weather Station (${station.id})`
+        
+        // Add click handler for detailed info
+        el.addEventListener('click', () => {
+          alert(`🌤️ ${station.name} Weather Station\n\nStation ID: ${station.id}\nCoordinates: ${station.lat.toFixed(4)}°N, ${station.lon.toFixed(4)}°W\n\nThis NDBC weather buoy provides real-time marine weather data including wind, waves, and atmospheric conditions.`)
+        })
         
         const marker = new maplibregl.Marker({ element: el })
           .setLngLat([station.lon, station.lat] as LngLatLike)
@@ -575,6 +594,25 @@ function App() {
             'circle-stroke-color': '#ffffff',
             'circle-stroke-width': 2
           }
+        })
+        
+        // Add click handler for hazards
+        map.on('click', 'hazards-layer', (e) => {
+          if (e.features && e.features.length > 0) {
+            const feature = e.features[0]
+            const name = feature.properties.name
+            const type = feature.properties.type
+            alert(`⚠️ ${name}\n\nType: ${type}\n\nThis hazard marker indicates a dangerous area that should be avoided while sailing. Always maintain a safe distance and check your charts.`)
+          }
+        })
+        
+        // Change cursor on hover
+        map.on('mouseenter', 'hazards-layer', () => {
+          map.getCanvas().style.cursor = 'pointer'
+        })
+        
+        map.on('mouseleave', 'hazards-layer', () => {
+          map.getCanvas().style.cursor = ''
         })
       }
     } else {
@@ -684,6 +722,25 @@ function App() {
             'circle-stroke-width': 2
           }
         })
+        
+        // Add click handler for navigation aids
+        map.on('click', 'navigation-aids-layer', (e) => {
+          if (e.features && e.features.length > 0) {
+            const feature = e.features[0]
+            const name = feature.properties.name
+            const type = feature.properties.type
+            alert(`🧭 ${name}\n\nType: ${type}\n\nThis navigation aid helps sailors navigate safely. Red buoys should be kept to starboard when entering, green buoys to port. Always follow proper navigation rules.`)
+          }
+        })
+        
+        // Change cursor on hover
+        map.on('mouseenter', 'navigation-aids-layer', () => {
+          map.getCanvas().style.cursor = 'pointer'
+        })
+        
+        map.on('mouseleave', 'navigation-aids-layer', () => {
+          map.getCanvas().style.cursor = ''
+        })
       }
     } else {
       if (map.getLayer('navigation-aids-layer')) {
@@ -740,6 +797,25 @@ function App() {
             'circle-stroke-color': '#ffffff',
             'circle-stroke-width': 2
           }
+        })
+        
+        // Add click handler for nautical signs
+        map.on('click', 'nautical-signs-layer', (e) => {
+          if (e.features && e.features.length > 0) {
+            const feature = e.features[0]
+            const name = feature.properties.name
+            const type = feature.properties.type
+            alert(`🚨 ${name}\n\nType: ${type}\n\nThis nautical sign indicates important regulations or restrictions. Always observe posted speed limits and wake restrictions for safety and courtesy.`)
+          }
+        })
+        
+        // Change cursor on hover
+        map.on('mouseenter', 'nautical-signs-layer', () => {
+          map.getCanvas().style.cursor = 'pointer'
+        })
+        
+        map.on('mouseleave', 'nautical-signs-layer', () => {
+          map.getCanvas().style.cursor = ''
         })
       }
     } else {
@@ -2017,8 +2093,8 @@ function App() {
                         />
                         <span className="text-xs">🛰️ Satellite</span>
                       </label>
-                    </div>
-                  </div>
+            </div>
+          </div>
 
                   {/* Tidal Buoys */}
                   <div className="space-y-2">
@@ -2032,7 +2108,7 @@ function App() {
                       />
                       <span className="text-xs">🌊 Tidal Buoys</span>
                     </label>
-                  </div>
+        </div>
 
                   {/* Weather Stations */}
                   <div className="space-y-2">

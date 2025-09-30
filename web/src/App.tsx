@@ -171,9 +171,15 @@ function App() {
     if (mapRef.current || !mapContainerRef.current || isInitializing) return
     
     try {
-      const styleUrl = mapStyle === 'satellite' 
-        ? 'https://api.maptiler.com/maps/satellite/style.json?key=get_your_own_OpIi9ZULNHzrESv6T2vL'
-        : 'https://api.maptiler.com/maps/streets/style.json?key=get_your_own_OpIi9ZULNHzrESv6T2vL'
+      let styleUrl
+      if (mapStyle === 'satellite') {
+        styleUrl = 'https://api.maptiler.com/maps/satellite/style.json?key=get_your_own_OpIi9ZULNHzrESv6T2vL'
+      } else {
+        // Use dark or light streets based on dark mode
+        styleUrl = isDarkMode 
+          ? 'https://api.maptiler.com/maps/dark/style.json?key=get_your_own_OpIi9ZULNHzrESv6T2vL'
+          : 'https://api.maptiler.com/maps/streets/style.json?key=get_your_own_OpIi9ZULNHzrESv6T2vL'
+      }
       
     const map = new maplibregl.Map({
       container: mapContainerRef.current,
@@ -404,9 +410,15 @@ function App() {
   useEffect(() => {
     if (!mapRef.current) return
     
-    const styleUrl = mapStyle === 'satellite' 
-      ? 'https://api.maptiler.com/maps/satellite/style.json?key=get_your_own_OpIi9ZULNHzrESv6T2vL'
-      : 'https://api.maptiler.com/maps/streets/style.json?key=get_your_own_OpIi9ZULNHzrESv6T2vL'
+    let styleUrl
+    if (mapStyle === 'satellite') {
+      styleUrl = 'https://api.maptiler.com/maps/satellite/style.json?key=get_your_own_OpIi9ZULNHzrESv6T2vL'
+    } else {
+      // Use dark or light streets based on dark mode
+      styleUrl = isDarkMode 
+        ? 'https://api.maptiler.com/maps/dark/style.json?key=get_your_own_OpIi9ZULNHzrESv6T2vL'
+        : 'https://api.maptiler.com/maps/streets/style.json?key=get_your_own_OpIi9ZULNHzrESv6T2vL'
+    }
     
     mapRef.current.setStyle(styleUrl)
     
@@ -436,7 +448,7 @@ function App() {
         },
       })
     })
-  }, [mapStyle])
+  }, [mapStyle, isDarkMode])
 
   // Show/hide tidal buoys
   useEffect(() => {

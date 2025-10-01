@@ -1866,14 +1866,7 @@ function App() {
           </div>
           
           <div className="border-t border-gray-200 mt-6 pt-6">
-            <div className="flex flex-col sm:flex-row justify-between items-center text-sm text-gray-500">
-              <div className="flex items-center space-x-4 mb-4 sm:mb-0">
-                <span>Marine Weather</span>
-                <span>•</span>
-                <span>Tide Predictions</span>
-                <span>•</span>
-                <span>Route Planning</span>
-              </div>
+            <div className="flex justify-center">
               <div className="text-xs text-gray-400">
                 Data from NOAA • Weather from OpenWeatherMap • Tides from CO-OPS
               </div>

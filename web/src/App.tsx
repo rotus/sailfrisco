@@ -1646,7 +1646,7 @@ function App() {
                   </div>
                   <button
                     onClick={() => setMapStyle(mapStyle === 'streets' ? 'satellite' : 'streets')}
-                    className="bg-slate-600 text-white p-2 rounded-md border border-slate-600 hover:bg-slate-600 hover:border-blue-400 transition-all duration-200"
+                    className="bg-blue-600 text-white p-2 rounded-md border border-blue-600 hover:bg-blue-500 hover:border-blue-400 transition-all duration-200"
                     title={mapStyle === 'streets' ? 'Switch to Satellite' : 'Switch to Streets'}
                   >
                     <FaSatellite className="w-4 h-4" />

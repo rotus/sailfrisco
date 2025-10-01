@@ -447,44 +447,31 @@ function App() {
         : 'https://api.maptiler.com/maps/streets/style.json?key=get_your_own_OpIi9ZULNHzrESv6T2vL'
     }
     
-    console.log('Dark mode changed:', isDarkMode, 'Style URL:', styleUrl)
+    // console.log('Dark mode changed:', isDarkMode, 'Style URL:', styleUrl)
     
     // Debounce the style change to prevent rapid updates
     const timeoutId = setTimeout(() => {
-      if (!mapRef.current) {
-        console.log('Map ref not available during timeout')
-        return
-      }
-      
-      // Don't change style if already loading
-      if (isMapStyleLoading) {
-        console.log('Map style already loading, skipping update')
+      if (!mapRef.current || isMapStyleLoading) {
         return
       }
       
       try {
         // Check if map is ready and not already loading a style
         if (mapRef.current.isStyleLoaded && mapRef.current.isStyleLoaded()) {
-          console.log('Updating map style to:', styleUrl)
           setIsMapStyleLoading(true)
           mapRef.current.setStyle(styleUrl)
         } else {
-          console.log('Map not ready, waiting...')
           // If map isn't ready, wait a bit more
           setTimeout(() => {
-            if (mapRef.current && mapRef.current.isStyleLoaded && mapRef.current.isStyleLoaded()) {
-              console.log('Map ready, updating style to:', styleUrl)
+            if (mapRef.current && mapRef.current.isStyleLoaded && mapRef.current.isStyleLoaded() && !isMapStyleLoading) {
               setIsMapStyleLoading(true)
               mapRef.current.setStyle(styleUrl)
-            } else {
-              console.log('Map still not ready after delay, skipping style update')
             }
           }, 1000)
         }
       } catch (error) {
-        console.error('Map style update error:', error)
         setIsMapStyleLoading(false)
-        // Don't show error to user, but log for debugging
+        // Silently handle errors
       }
     }, 500)
     
@@ -519,8 +506,7 @@ function App() {
     })
     
     // Handle style loading errors
-    mapRef.current?.on('error', (e) => {
-      console.error('Map error:', e)
+    mapRef.current?.on('error', () => {
       setIsMapStyleLoading(false)
     })
   }, [mapStyle, isDarkMode])
@@ -2159,7 +2145,7 @@ function App() {
                               <div>Harbor exit: {etaSummary.breakdown.harborExit.toFixed(1)}h</div>
                               <div>Sailing: {etaSummary.breakdown.sailingTime.toFixed(1)}h</div>
                               <div>Wind: {etaSummary.breakdown.windSpeed.toFixed(1)} kts {getWindDirection(etaSummary.breakdown.windDirection)}</div>
-                              <div title="Sailing efficiency based on wind angle: 10% (dead upwind) to 90% (broad reach)">Efficiency: {(etaSummary.breakdown.efficiency * 100).toFixed(0)}%</div>
+                              <div title="Sailing efficiency based on wind angle: 10% (dead upwind), 60% (close hauled), 80% (beam reach), 90% (broad reach)">Efficiency: {(etaSummary.breakdown.efficiency * 100).toFixed(0)}%</div>
                               {etaSummary.breakdown.tackingPenalty > 1 && (
                                 <div className="text-orange-600">Tacking penalty: +{((etaSummary.breakdown.tackingPenalty - 1) * 100).toFixed(0)}%</div>
                               )}
@@ -2510,8 +2496,8 @@ function calculateSailingEfficiency(
   
   // Sailing efficiency based on wind angle
   if (normalizedAngle < 0.1) return 0.1 // Dead upwind - very slow
-  if (normalizedAngle < 0.3) return 0.4 // Close hauled - slow
-  if (normalizedAngle < 0.6) return 0.7 // Beam reach - good
+  if (normalizedAngle < 0.3) return 0.6 // Close hauled - decent speed but extra distance
+  if (normalizedAngle < 0.6) return 0.8 // Beam reach - good
   if (normalizedAngle < 0.8) return 0.9 // Broad reach - excellent
   return 0.8 // Running - good but not as fast as broad reach
 }

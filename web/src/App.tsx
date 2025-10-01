@@ -6,6 +6,14 @@ import {
   WiDaySunny, WiCloudy, WiRain, WiSnow, WiThunderstorm, WiFog,
   WiNightClear, WiNightCloudy, WiNightRain, WiNightSnow, WiNightThunderstorm
 } from 'react-icons/wi'
+import { 
+  // Font Awesome - final selections
+  FaWind, FaThermometerHalf, FaWater, FaRedo, FaSun, FaMoon
+} from 'react-icons/fa'
+import { 
+  // Material Design - main logo
+  MdSailing
+} from 'react-icons/md'
 
 type HarborKey = 'Sausalito' | 'Berkeley' | 'Alameda' | 'San Francisco' | 'Richmond'
 
@@ -96,6 +104,8 @@ type TidesData = {
   upcoming: Array<{ time: string; valueFt: number; type?: 'High' | 'Low' }>
   rawCount: number
 }
+
+
 
 function App() {
   const [harbor, setHarbor] = useState<HarborKey>('San Francisco')
@@ -482,12 +492,12 @@ function App() {
       TIDAL_BUOYS.forEach((buoy) => {
         const el = document.createElement('div')
         el.className = 'w-4 h-4 bg-orange-500 rounded-full border-2 border-white shadow-lg cursor-pointer flex items-center justify-center'
-        el.innerHTML = '🌊'
+        el.innerHTML = '<svg class="w-4 h-4 text-white" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/></svg>'
         el.title = `${buoy.name} Tide Station (${buoy.id})`
         
         // Add click handler for detailed info
         el.addEventListener('click', () => {
-          alert(`🌊 ${buoy.name} Tide Station\n\nStation ID: ${buoy.id}\nCoordinates: ${buoy.lat.toFixed(4)}°N, ${buoy.lon.toFixed(4)}°W\n\nThis NOAA tide station provides real-time water level data for accurate tide predictions.`)
+          alert(`${buoy.name} Tide Station\n\nStation ID: ${buoy.id}\nCoordinates: ${buoy.lat.toFixed(4)}°N, ${buoy.lon.toFixed(4)}°W\n\nThis NOAA tide station provides real-time water level data for accurate tide predictions.`)
         })
         
         const marker = new maplibregl.Marker({ element: el })
@@ -516,7 +526,7 @@ function App() {
         
         // Add click handler for detailed info
         el.addEventListener('click', () => {
-          alert(`🌤️ ${station.name} Weather Station\n\nStation ID: ${station.id}\nCoordinates: ${station.lat.toFixed(4)}°N, ${station.lon.toFixed(4)}°W\n\nThis NDBC weather buoy provides real-time marine weather data including wind, waves, and atmospheric conditions.`)
+          alert(`${station.name} Weather Station\n\nStation ID: ${station.id}\nCoordinates: ${station.lat.toFixed(4)}°N, ${station.lon.toFixed(4)}°W\n\nThis NDBC weather buoy provides real-time marine weather data including wind, waves, and atmospheric conditions.`)
         })
         
         const marker = new maplibregl.Marker({ element: el })
@@ -633,7 +643,7 @@ function App() {
             const feature = e.features[0]
             const name = feature.properties.name
             const type = feature.properties.type
-            alert(`⚠️ ${name}\n\nType: ${type}\n\nThis hazard marker indicates a dangerous area that should be avoided while sailing. Always maintain a safe distance and check your charts.`)
+            alert(`${name}\n\nType: ${type}\n\nThis hazard marker indicates a dangerous area that should be avoided while sailing. Always maintain a safe distance and check your charts.`)
           }
         })
         
@@ -879,6 +889,8 @@ function App() {
     )
   }
 
+
+
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Navigation Bar */}
@@ -887,18 +899,8 @@ function App() {
           <div className="flex justify-between items-center h-16">
             <div className="flex items-center">
               <div className="flex items-center space-x-3">
-                <div className="w-10 h-10 bg-gradient-to-br from-blue-600 to-blue-700 rounded-lg flex items-center justify-center shadow-lg">
-                  <svg className="w-6 h-6 text-white" fill="currentColor" viewBox="0 0 24 24">
-                    {/* Hull - dark blue */}
-                    <path d="M6 19C6 19 8 17 12 17C16 17 18 19 18 19L17 21L7 21L6 19Z" fill="#1e40af"/>
-                    {/* Main sail - dark blue */}
-                    <path d="M12 3L18 15L12 15Z" fill="#1e40af"/>
-                    {/* Jib sail - light blue */}
-                    <path d="M12 3L6 12L12 12Z" fill="#3b82f6"/>
-                    {/* Wave lines underneath */}
-                    <path d="M5 19Q7 17 9 19T12 19T15 19T19 19" stroke="#3b82f6" strokeWidth="1" fill="none" opacity="0.7"/>
-                    <path d="M4 20Q6 18 8 20T12 20T16 20T20 20" stroke="#3b82f6" strokeWidth="1" fill="none" opacity="0.5"/>
-                  </svg>
+                <div className="w-10 h-10 bg-white rounded-lg flex items-center justify-center shadow-lg">
+                  <MdSailing className="w-6 h-6 text-blue-600" />
                 </div>
                 <h1 className="text-xl font-bold text-white">SailFrisco</h1>
             </div>
@@ -910,7 +912,7 @@ function App() {
               <div className="flex items-center space-x-2">
                 <label className="text-sm font-medium text-gray-300">Harbor:</label>
               <select
-                  className="p-2 border border-gray-600 bg-slate-700 text-white rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
+                  className="p-2 border border-gray-600 bg-slate-700 text-white rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm hover:bg-slate-600 hover:border-blue-400 transition-all duration-200"
                 value={harbor}
                 onChange={(e) => setHarbor(e.target.value as HarborKey)}
               >
@@ -924,7 +926,7 @@ function App() {
               <div className="flex items-center space-x-2">
                 <label className="text-sm font-medium text-gray-300">Boat:</label>
               <select
-                  className="p-2 border border-gray-600 bg-slate-700 text-white rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
+                  className="p-2 border border-gray-600 bg-slate-700 text-white rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm hover:bg-slate-600 hover:border-blue-400 transition-all duration-200"
                 value={boat}
                 onChange={(e) => setBoat(e.target.value as any)}
               >
@@ -951,9 +953,9 @@ function App() {
               {/* Dark Mode Toggle */}
         <button
           onClick={() => setIsDarkMode(!isDarkMode)}
-          className="bg-slate-600 text-white px-4 py-2 rounded-md hover:bg-slate-700 text-sm flex items-center space-x-2 transition-colors"
+          className="bg-slate-600 text-white px-4 py-2 rounded-md border border-slate-600 hover:bg-slate-600 hover:border-blue-400 text-sm flex items-center space-x-2 transition-all duration-200"
         >
-          <span>{isDarkMode ? '☀️' : '🌙'}</span>
+          {isDarkMode ? <FaSun className="w-4 h-4" /> : <FaMoon className="w-4 h-4" />}
           <span>{isDarkMode ? 'Light' : 'Dark'}</span>
         </button>
 
@@ -961,9 +963,9 @@ function App() {
               <button
                 onClick={fetchData}
                 disabled={loading}
-                className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed text-sm flex items-center space-x-2"
+                className="bg-blue-600 text-white px-4 py-2 rounded-md border border-blue-600 hover:bg-blue-500 hover:border-blue-400 disabled:opacity-50 disabled:cursor-not-allowed text-sm flex items-center space-x-2 transition-all duration-200"
               >
-                <span>🔄</span>
+                <FaRedo className="w-4 h-4" />
                 <span>{loading ? 'Loading...' : 'Refresh'}</span>
               </button>
             </div>
@@ -995,10 +997,10 @@ function App() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="space-y-0">
             {/* Weather/Wind Card */}
-            <div className={`bg-gradient-to-br rounded-lg shadow-sm border transition-all duration-300 hover:shadow-md hover:scale-[1.01] ${
+            <div className={`bg-gradient-to-br rounded-lg shadow-sm border transition-all duration-300 hover:shadow-2xl hover:scale-102 hover:animate-pulse ${
               isWindExpanded 
-                ? 'from-blue-50 to-blue-100 border-blue-200 shadow-lg' 
-                : 'from-slate-50 to-slate-100 border-slate-200'
+                ? 'from-blue-50 to-blue-100 border-blue-300 shadow-lg ring-2 ring-blue-100' 
+                : 'from-slate-50 to-slate-100 border-slate-200 hover:from-blue-50 hover:to-blue-100 hover:border-blue-200'
             }`}>
               {/* Collapsible Header */}
               <div 
@@ -1011,9 +1013,7 @@ function App() {
               >
                 <div className="flex items-center justify-between">
                   <h3 className="text-lg font-semibold text-slate-800 flex items-center">
-                    <svg className="w-5 h-5 mr-2 text-blue-600" fill="currentColor" viewBox="0 0 24 24">
-                      <path d="M19.35 10.04A7.49 7.49 0 0 0 12 4C9.11 4 6.6 5.64 5.35 8.04A5.994 5.994 0 0 0 0 14c0 3.31 2.69 6 6 6h13c2.76 0 5-2.24 5-5 0-2.64-2.05-4.78-4.65-4.96zM14 13v4h-4v-4H7l5-5 5 5h-3z" fill="currentColor"/>
-                    </svg>
+                    <FaWind className="w-5 h-5 mr-2 text-blue-600" />
                     {marine?.windSpeedKts && !isNaN(marine.windSpeedKts) && marine?.windGustKts && !isNaN(marine.windGustKts) && marine?.windDirectionDeg && !isNaN(marine.windDirectionDeg) ? (
                       <>
                         Winds of {marine.windSpeedKts.toFixed(1)} knots out of the {getWindDirection(marine.windDirectionDeg)}, gusting to {marine.windGustKts.toFixed(1)} knots with {(() => {
@@ -1023,9 +1023,7 @@ function App() {
                       </>
                     ) : (
                       <div className="flex items-center space-x-2">
-                        <svg className="w-5 h-5 text-blue-600" fill="currentColor" viewBox="0 0 24 24">
-                          <path d="M19.35 10.04A7.49 7.49 0 0 0 12 4C9.11 4 6.6 5.64 5.35 8.04A5.994 5.994 0 0 0 0 14c0 3.31 2.69 6 6 6h13c2.76 0 5-2.24 5-5 0-2.64-2.05-4.78-4.65-4.96zM14 13v4h-4v-4H7l5-5 5 5h-3z" fill="currentColor"/>
-                        </svg>
+                        <FaWind className="w-5 h-5 text-blue-600" />
                         <span>Wind & Waves</span>
                       </div>
                     )}
@@ -1050,14 +1048,13 @@ function App() {
               
               {/* Collapsible Content */}
               {isWindExpanded && (
-                <div className="px-6 pb-6">
+                <div className="px-6 pb-6 animate-bounceIn">
               {marine ? (
                 <>
                   {/* Wind Scale Visualization */}
                   <div className="mb-6">
                     <div className="flex items-center justify-between mb-4">
-                      <h3 className="text-lg font-semibold text-blue-900 flex items-center">
-                        <span className="mr-2">🌬️</span>
+                      <h3 className="text-lg font-semibold text-blue-900">
                         Wind Scale
                       </h3>
                       <div className="flex items-center space-x-4">
@@ -1171,7 +1168,7 @@ function App() {
                             transform: 'translateX(-50%) translateY(-25px)'
                           }}
                         >
-                          ⚠️
+                          <FaWind className="w-4 h-4 text-red-500" />
                   </div>
                         
                         {/* Current Wind Speed Indicator */}
@@ -1307,7 +1304,7 @@ function App() {
                 </>
               ) : (
                 <div className="text-center py-8">
-                  <div className="text-4xl mb-2">🌊</div>
+                  <FaWater className="w-8 h-8 text-blue-400 mx-auto mb-2" />
                   <p className="text-sm text-blue-600">No weather data available</p>
                 </div>
               )}
@@ -1316,20 +1313,24 @@ function App() {
             </div>
 
             {/* Tides Card */}
-            <div className={`bg-gradient-to-br rounded-lg shadow-sm border transition-all duration-300 hover:shadow-md hover:scale-[1.01] ${
+            <div className={`bg-gradient-to-br rounded-lg shadow-sm border transition-all duration-300 hover:shadow-2xl hover:scale-102 hover:animate-pulse ${
               isTidesExpanded 
-                ? 'from-cyan-50 to-cyan-100 border-cyan-200 shadow-lg' 
-                : 'from-slate-50 to-slate-100 border-slate-200'
+                ? 'from-cyan-50 to-teal-100 border-cyan-300 shadow-lg ring-2 ring-cyan-100' 
+                : 'from-slate-50 to-slate-100 border-slate-200 hover:from-cyan-50 hover:to-teal-100 hover:border-cyan-200'
             }`}>
               {/* Collapsible Header */}
               <div 
-                className="p-6 cursor-pointer hover:bg-slate-100 transition-colors duration-200"
+                className={`p-6 cursor-pointer transition-colors duration-200 ${
+                  isTidesExpanded 
+                    ? 'hover:bg-cyan-100' 
+                    : 'hover:bg-slate-100'
+                }`}
                 onClick={() => setIsTidesExpanded(!isTidesExpanded)}
               >
                 <div className="flex items-center justify-between">
                   <div className="flex items-center space-x-4">
                     <h3 className="text-lg font-semibold text-slate-800 flex items-center">
-                      <svg className="w-5 h-5 mr-2 text-cyan-600" fill="currentColor" viewBox="0 0 24 24"><path d="M17 16.5c.83 0 1.5.67 1.5 1.5s-.67 1.5-1.5 1.5-1.5-.67-1.5-1.5.67-1.5 1.5-1.5zM3.5 18c0-.83.67-1.5 1.5-1.5s1.5.67 1.5 1.5-.67 1.5-1.5 1.5-1.5-.67-1.5-1.5zm6-2c0-.83.67-1.5 1.5-1.5s1.5.67 1.5 1.5-.67 1.5-1.5 1.5-1.5-.67-1.5-1.5zM17 12c.83 0 1.5.67 1.5 1.5s-.67 1.5-1.5 1.5-1.5-.67-1.5-1.5.67-1.5 1.5-1.5zM3.5 13.5c0-.83.67-1.5 1.5-1.5s1.5.67 1.5 1.5S5.83 15 5 15s-1.5-.67-1.5-1.5zM10 10c.83 0 1.5.67 1.5 1.5s-.67 1.5-1.5 1.5-1.5-.67-1.5-1.5.67-1.5 1.5-1.5z" stroke="currentColor" strokeWidth="0.5"/></svg>
+                      <FaWater className="w-5 h-5 mr-2 text-cyan-600" />
                       {tides && tides.upcoming.length > 0 ? (() => {
                         const now = new Date()
                         const recentTides = tides.upcoming.filter(tide => {
@@ -1411,7 +1412,7 @@ function App() {
               
               {/* Collapsible Content */}
               {isTidesExpanded && (
-                <div className="px-6 pb-6">
+                <div className="px-6 pb-6 animate-bounceIn">
                   {/* Toggle for 12h/24h view */}
                   <div className="flex items-center justify-center space-x-4 mb-6">
                     <div className="flex items-center space-x-2">
@@ -1777,14 +1778,14 @@ function App() {
                             if (nextTide.valueFt > currentTide.valueFt) {
                               return (
                                 <>
-                                  <span className="mr-1">↗️</span>
+                                  <FaWind className="w-3 h-3 mr-1 text-green-600" />
                                   Rising
                                 </>
                               )
                             } else {
                               return (
                                 <>
-                                  <span className="mr-1">↘️</span>
+                                  <FaWater className="w-3 h-3 mr-1 text-red-600" />
                                   Falling
                                 </>
                               )
@@ -1820,7 +1821,6 @@ function App() {
                 </div>
               ) : (
                 <div className="text-center py-8">
-                  <div className="text-4xl mb-2">🌊</div>
                   <p className="text-sm text-green-600">No tide data available</p>
                 </div>
               )}
@@ -1829,19 +1829,23 @@ function App() {
             </div>
 
             {/* Temperature Card */}
-            <div className={`bg-gradient-to-br rounded-lg shadow-sm border transition-all duration-300 hover:shadow-md hover:scale-[1.01] ${
+            <div className={`bg-gradient-to-br rounded-lg shadow-sm border transition-all duration-300 hover:shadow-2xl hover:scale-102 hover:animate-pulse ${
               isTemperatureExpanded 
-                ? 'from-amber-50 to-amber-100 border-amber-200 shadow-lg' 
-                : 'from-slate-50 to-slate-100 border-slate-200'
+                ? 'from-orange-50 to-amber-100 border-orange-300 shadow-lg ring-2 ring-orange-100' 
+                : 'from-slate-50 to-slate-100 border-slate-200 hover:from-orange-50 hover:to-amber-100 hover:border-orange-200'
             }`}>
               {/* Collapsible Header */}
               <div 
-                className="p-6 cursor-pointer hover:bg-slate-100 transition-colors duration-200"
+                className={`p-6 cursor-pointer transition-colors duration-200 ${
+                  isTemperatureExpanded 
+                    ? 'hover:bg-orange-100' 
+                    : 'hover:bg-slate-100'
+                }`}
                 onClick={() => setIsTemperatureExpanded(!isTemperatureExpanded)}
               >
                 <div className="flex items-center justify-between">
                   <h3 className="text-lg font-semibold text-slate-800 flex items-center">
-                    <svg className="w-5 h-5 mr-2 text-amber-600" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2C11.45 2 11 2.45 11 3v10.5c-1.18.67-2 1.94-2 3.5 0 2.21 1.79 4 4 4s4-1.79 4-4c0-1.56-.82-2.83-2-3.5V3c0-.55-.45-1-1-1zm0 2v7h1V4h-1zm0 9.5c1.1 0 2 .9 2 2s-.9 2-2 2-2-.9-2-2 .9-2 2-2z" stroke="currentColor" strokeWidth="0.5"/></svg>
+                    <FaThermometerHalf className="w-5 h-5 mr-2 text-amber-600" />
                     {marine?.temperatureC && !isNaN(marine.temperatureC) && marine?.weatherCode !== null ? (
                       <>
                         Currently {temperatureUnit === 'celsius' 
@@ -1883,7 +1887,7 @@ function App() {
               
               {/* Collapsible Content */}
               {isTemperatureExpanded && (
-                <div className="px-6 pb-6">
+                <div className="px-6 pb-6 animate-bounceIn">
                   {/* Toggle for C/F temperature */}
                   <div className="flex items-center justify-center space-x-4 mb-6">
                     <div className="flex items-center space-x-2">
@@ -2060,7 +2064,6 @@ function App() {
                     </div>
                   ) : (
                     <div className="text-center py-8">
-                      <div className="text-4xl mb-2">🌡️</div>
                       <p className="text-sm text-orange-600">No temperature data available</p>
                     </div>
                   )}
@@ -2145,7 +2148,7 @@ function App() {
               
               {/* Map Options */}
               <div className="p-4 border-t border-gray-200 bg-gray-50">
-                <h3 className="text-sm font-semibold text-gray-900 mb-3">🗺️ Map Options</h3>
+                <h3 className="text-sm font-semibold text-gray-900 mb-3">Map Options</h3>
                 
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                   {/* Map Style */}
@@ -2161,7 +2164,7 @@ function App() {
                           onChange={(e) => setMapStyle(e.target.value as 'streets' | 'satellite')}
                           className="mr-1"
                         />
-                        <span className="text-xs">🗺️ Streets</span>
+                        <span className="text-xs">Streets</span>
                       </label>
                       <label className="flex items-center">
                         <input
@@ -2187,7 +2190,7 @@ function App() {
                         onChange={(e) => setShowTidalBuoys(e.target.checked)}
                         className="mr-1"
                       />
-                      <span className="text-xs">🌊 Tidal Buoys</span>
+                      <span className="text-xs">Tidal Buoys</span>
                     </label>
         </div>
 
@@ -2201,7 +2204,7 @@ function App() {
                         onChange={(e) => setShowWeatherStations(e.target.checked)}
                         className="mr-1"
                       />
-                      <span className="text-xs">🌤️ Weather</span>
+                      <span className="text-xs">Weather</span>
                     </label>
                   </div>
 
@@ -2225,7 +2228,7 @@ function App() {
                           onChange={(e) => setShowHazards(e.target.checked)}
                           className="mr-1"
                         />
-                        <span className="text-xs">⚠️ Hazards</span>
+                        <span className="text-xs">Hazards</span>
                       </label>
                       <label className="flex items-center">
                         <input
@@ -2234,7 +2237,7 @@ function App() {
                           onChange={(e) => setShowWaterDepths(e.target.checked)}
                           className="mr-1"
                         />
-                        <span className="text-xs">🌊 Water Depths</span>
+                        <span className="text-xs">Water Depths</span>
                       </label>
                       <label className="flex items-center">
                         <input
@@ -2275,7 +2278,7 @@ function App() {
                       }}
                       className="px-2 py-1 text-xs bg-blue-100 text-blue-700 rounded hover:bg-blue-200"
                     >
-                      🗺️ Streets + Tides
+                      Streets + Tides
                     </button>
                     <button
                       onClick={() => {
@@ -2320,7 +2323,7 @@ function App() {
                       }}
                       className="px-2 py-1 text-xs bg-gray-100 text-gray-700 rounded hover:bg-gray-200"
                     >
-                      🗺️ Clean
+                      Clean
                     </button>
                   </div>
                 </div>
@@ -2332,52 +2335,42 @@ function App() {
       </section>
 
       {/* Footer */}
-      <footer className="bg-gray-800 text-white py-8 mt-12">
+      <footer className="bg-gray-200 text-gray-800 py-8 mt-12 border-t border-gray-400">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
             <div>
               <div className="flex items-center space-x-2 mb-3">
-                <div className="w-8 h-8 bg-gradient-to-br from-blue-600 to-blue-700 rounded-lg flex items-center justify-center shadow-lg">
-                  <svg className="w-5 h-5 text-white" fill="currentColor" viewBox="0 0 24 24">
-                    {/* Hull - dark blue */}
-                    <path d="M6 19C6 19 8 17 12 17C16 17 18 19 18 19L17 21L7 21L6 19Z" fill="#1e40af"/>
-                    {/* Main sail - dark blue */}
-                    <path d="M12 3L18 15L12 15Z" fill="#1e40af"/>
-                    {/* Jib sail - light blue */}
-                    <path d="M12 3L6 12L12 12Z" fill="#3b82f6"/>
-                    {/* Wave lines underneath */}
-                    <path d="M5 19Q7 17 9 19T12 19T15 19T19 19" stroke="#3b82f6" strokeWidth="1" fill="none" opacity="0.7"/>
-                    <path d="M4 20Q6 18 8 20T12 20T16 20T20 20" stroke="#3b82f6" strokeWidth="1" fill="none" opacity="0.5"/>
-                  </svg>
+                <div className="w-8 h-8 bg-gradient-to-br from-blue-400 to-blue-500 rounded-lg flex items-center justify-center shadow-lg">
+                  <MdSailing className="w-5 h-5 text-white" />
                 </div>
-                <h5 className="text-blue-400 text-lg font-semibold">SailFrisco</h5>
+                <h5 className="text-blue-600 text-lg font-semibold">SailFrisco</h5>
               </div>
-              <p className="text-gray-300 text-sm leading-relaxed">
+              <p className="text-gray-600 text-sm leading-relaxed">
                 Real-time marine weather, tides, and route planning for San Francisco Bay sailors. 
                 Track conditions, plan routes, and sail smarter with data-driven insights.
               </p>
             </div>
             <div className="text-right">
-              <p className="text-gray-300 mb-2">
-                Built with <span className="text-blue-400">💙</span> for Bay Area sailors
+              <p className="text-gray-600 mb-2">
+                Built with <span className="text-blue-600">💙</span> for Bay Area sailors
               </p>
-              <div className="text-xs text-gray-400 space-y-1">
+              <div className="text-xs text-gray-500 space-y-1">
                 <div>React + TypeScript • MapLibre GL • NOAA Data</div>
                 <div>Real-time weather • Tide predictions • Route planning</div>
               </div>
             </div>
           </div>
           
-          <div className="border-t border-gray-700 mt-6 pt-6">
-            <div className="flex flex-col sm:flex-row justify-between items-center text-sm text-gray-400">
+          <div className="border-t border-gray-200 mt-6 pt-6">
+            <div className="flex flex-col sm:flex-row justify-between items-center text-sm text-gray-500">
               <div className="flex items-center space-x-4 mb-4 sm:mb-0">
-                <span>🌊 Marine Weather</span>
+                <span>Marine Weather</span>
                 <span>•</span>
-                <span>🌊 Tide Predictions</span>
+                <span>Tide Predictions</span>
                 <span>•</span>
-                <span>🗺️ Route Planning</span>
+                <span>Route Planning</span>
               </div>
-              <div className="text-xs">
+              <div className="text-xs text-gray-400">
                 Data from NOAA • Weather from OpenWeatherMap • Tides from CO-OPS
               </div>
             </div>

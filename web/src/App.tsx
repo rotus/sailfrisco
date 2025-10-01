@@ -791,15 +791,16 @@ function App() {
                         
                         {/* Current Wind Speed Indicator */}
                         {marine.windSpeedKts && !isNaN(marine.windSpeedKts) && (() => {
+                          const windSpeed = Number(marine.windSpeedKts)
                           let indicatorPosition
                           if (useLogarithmic) {
                             // Use the same logarithmic calculation as segments
-                            const logWind = Math.log(1 + marine.windSpeedKts)
+                            const logWind = Math.log(1 + windSpeed)
                             const logTotal = Math.log(1 + 64)
                             indicatorPosition = (logWind / logTotal) * 100
                           } else {
                             // Use the same linear calculation as segments
-                            indicatorPosition = (marine.windSpeedKts / 64) * 100
+                            indicatorPosition = (windSpeed / 64) * 100
                           }
                           
                           return (
@@ -809,6 +810,7 @@ function App() {
                                 left: `${Math.min(indicatorPosition, 100)}%`,
                                 transform: 'translateX(-50%)'
                               }}
+                              title={`Wind Speed: ${marine.windSpeedKts} kts, Position: ${Math.min(indicatorPosition, 100)}%`}
                             />
                           )
                         })()}

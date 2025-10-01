@@ -8,7 +8,7 @@ import {
 } from 'react-icons/wi'
 import { 
   // Font Awesome - final selections
-  FaWind, FaThermometerHalf, FaWater, FaRedo, FaSun, FaMoon
+  FaWind, FaThermometerHalf, FaWater, FaRedo, FaSun, FaMoon, FaSatellite
 } from 'react-icons/fa'
 import { 
   // Material Design - main logo
@@ -123,8 +123,6 @@ function App() {
   const [beaufortLegendOption, setBeaufortLegendOption] = useState<'none' | 'option1' | 'option2' | 'option3'>('none')
   const [temperatureUnit, setTemperatureUnit] = useState<'celsius' | 'fahrenheit'>('fahrenheit')
   const [mapStyle, setMapStyle] = useState<'streets' | 'satellite'>('streets')
-  const [showTidalBuoys, setShowTidalBuoys] = useState(false)
-  const [showWeatherStations, setShowWeatherStations] = useState(false)
   const [isDarkMode, setIsDarkMode] = useState(false)
 
   // Apply dark mode styles - simple color inversion
@@ -135,11 +133,6 @@ function App() {
       document.documentElement.classList.remove('dark')
     }
   }, [isDarkMode])
-  const [showShippingLanes, setShowShippingLanes] = useState(false)
-  const [showHazards, setShowHazards] = useState(false)
-  const [showWaterDepths, setShowWaterDepths] = useState(false)
-  const [showNavigationAids, setShowNavigationAids] = useState(false)
-  const [showNauticalSigns, setShowNauticalSigns] = useState(false)
 
   const mapRef = useRef<Map | null>(null)
   const mapContainerRef = useRef<HTMLDivElement | null>(null)
@@ -451,35 +444,6 @@ function App() {
     return () => clearTimeout(timeoutId)
   }, [mapStyle]) // Removed isDarkMode dependency
 
-  // Show/hide tidal buoys
-  useEffect(() => {
-    const map = mapRef.current
-    if (!map) return
-
-    // Clear existing markers
-    tidalBuoyMarkersRef.current.forEach((m) => m.remove())
-    tidalBuoyMarkersRef.current = []
-
-    if (showTidalBuoys) {
-      TIDAL_BUOYS.forEach((buoy) => {
-        const el = document.createElement('div')
-        el.className = 'w-4 h-4 bg-orange-500 rounded-full border-2 border-white shadow-lg cursor-pointer flex items-center justify-center'
-        el.innerHTML = '<svg class="w-4 h-4 text-white" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/></svg>'
-        el.title = `${buoy.name} Tide Station (${buoy.id})`
-        
-        // Add click handler for detailed info
-        el.addEventListener('click', () => {
-          alert(`${buoy.name} Tide Station\n\nStation ID: ${buoy.id}\nCoordinates: ${buoy.lat.toFixed(4)}°N, ${buoy.lon.toFixed(4)}°W\n\nThis NOAA tide station provides real-time water level data for accurate tide predictions.`)
-        })
-        
-        const marker = new maplibregl.Marker({ element: el })
-          .setLngLat([buoy.lon, buoy.lat] as LngLatLike)
-          .addTo(map)
-        
-        tidalBuoyMarkersRef.current.push(marker)
-      })
-    }
-  }, [showTidalBuoys])
 
   // Show/hide weather stations
   useEffect(() => {
@@ -929,6 +893,14 @@ function App() {
         >
           {isDarkMode ? <FaSun className="w-4 h-4" /> : <FaMoon className="w-4 h-4" />}
         </button>
+
+              {/* Satellite Toggle */}
+              <button
+                onClick={() => setMapStyle(mapStyle === 'streets' ? 'satellite' : 'streets')}
+                className="bg-slate-600 text-white p-2 rounded-md border border-slate-600 hover:bg-slate-600 hover:border-blue-400 transition-all duration-200"
+              >
+                <FaSatellite className="w-4 h-4" />
+              </button>
 
               {/* Refresh Button */}
               <button
@@ -2063,231 +2035,114 @@ function App() {
                   />
               </div>
               
-              {/* Map Options and Route Planner Row */}
-              <div className="p-4 border-t border-gray-200 bg-gray-50">
-                <div className="flex flex-col lg:flex-row gap-6">
-                  {/* Route Planner */}
-                  <div className="flex-1">
-                    <h3 className="text-sm font-semibold text-gray-900 mb-3">Route Planner</h3>
+              {/* Route Planner - Full Width */}
+              <div className="p-6 border-t border-gray-200 bg-gray-50">
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                  {/* Route Summary */}
+                  <div className="lg:col-span-1">
+                    <h3 className="text-lg font-semibold text-gray-900 mb-4">Route Summary</h3>
                     <div className="space-y-4">
-                      <div className="text-sm text-gray-600">
-                        Waypoints: {waypoints.length}
+                      <div className="bg-white rounded-lg p-4 shadow-sm">
+                        <div className="flex items-center justify-between mb-2">
+                          <span className="text-sm font-medium text-gray-700">Waypoints</span>
+                          <span className="text-lg font-bold text-blue-600">{waypoints.length}</span>
+                        </div>
                         {etaSummary && (
-                          <span className="ml-2">• Distance: {etaSummary.distanceNm.toFixed(1)} nm</span>
+                          <div className="flex items-center justify-between">
+                            <span className="text-sm font-medium text-gray-700">Distance</span>
+                            <span className="text-lg font-bold text-green-600">{etaSummary.distanceNm.toFixed(1)} nm</span>
+                          </div>
                         )}
                       </div>
+                      
                       {etaSummary && (
-                        <div className="bg-white rounded-lg p-4 space-y-2">
-                          <div className="text-sm text-gray-600">Realistic Sailing ETA</div>
-                          <div className="text-xl font-bold text-gray-900">{etaSummary.hours.toFixed(1)} hours</div>
+                        <div className="bg-white rounded-lg p-4 shadow-sm">
+                          <div className="text-sm font-medium text-gray-700 mb-2">Sailing ETA</div>
+                          <div className="text-2xl font-bold text-gray-900 mb-3">{etaSummary.hours.toFixed(1)} hours</div>
                           {etaSummary.breakdown && (
-                            <div className="text-xs text-gray-500 space-y-1">
-                              <div>Harbor exit: {etaSummary.breakdown.harborExit.toFixed(1)}h</div>
-                              <div>Sailing: {etaSummary.breakdown.sailingTime.toFixed(1)}h</div>
-                              <div>Wind: {etaSummary.breakdown.windSpeed.toFixed(1)} kts {getWindDirection(etaSummary.breakdown.windDirection)}</div>
-                              <div title="Sailing efficiency based on wind angle: 60% (close hauled), 80% (beam reach), 90% (broad reach)">Efficiency: {(etaSummary.breakdown.efficiency * 100).toFixed(0)}%</div>
+                            <div className="space-y-2 text-xs text-gray-500">
+                              <div className="flex justify-between">
+                                <span>Harbor exit:</span>
+                                <span>{etaSummary.breakdown.harborExit.toFixed(1)}h</span>
+                              </div>
+                              <div className="flex justify-between">
+                                <span>Sailing:</span>
+                                <span>{etaSummary.breakdown.sailingTime.toFixed(1)}h</span>
+                              </div>
+                              <div className="flex justify-between">
+                                <span>Wind:</span>
+                                <span>{etaSummary.breakdown.windSpeed.toFixed(1)} kts {getWindDirection(etaSummary.breakdown.windDirection)}</span>
+                              </div>
+                              <div className="flex justify-between" title="Sailing efficiency based on wind angle: 60% (close hauled), 80% (beam reach), 90% (broad reach)">
+                                <span>Efficiency:</span>
+                                <span>{(etaSummary.breakdown.efficiency * 100).toFixed(0)}%</span>
+                              </div>
                               {etaSummary.breakdown.tackingPenalty > 1 && (
-                                <div className="text-orange-600">Tacking penalty: +{((etaSummary.breakdown.tackingPenalty - 1) * 100).toFixed(0)}%</div>
+                                <div className="flex justify-between text-orange-600">
+                                  <span>Tacking penalty:</span>
+                                  <span>+{((etaSummary.breakdown.tackingPenalty - 1) * 100).toFixed(0)}%</span>
+                                </div>
                               )}
                             </div>
                           )}
                         </div>
                       )}
-                      <div className="flex space-x-2">
+                    </div>
+                  </div>
+
+                  {/* Waypoints List */}
+                  <div className="lg:col-span-2">
+                    <div className="flex items-center justify-between mb-4">
+                      <h3 className="text-lg font-semibold text-gray-900">Waypoints</h3>
+                      {waypoints.length > 0 && (
                         <button
                           onClick={() => setWaypoints([])}
-                          className="flex-1 bg-red-600 text-white py-2 px-4 rounded-md hover:bg-red-700 text-sm"
+                          className="bg-red-600 text-white py-2 px-4 rounded-md hover:bg-red-700 text-sm transition-colors"
                         >
                           Clear All
                         </button>
-                      </div>
-                      {waypoints.length > 0 && (
-                        <div className="max-h-32 overflow-y-auto">
-                          <div className="text-sm font-medium text-gray-900 mb-2">Waypoints:</div>
-                          <div className="space-y-1">
-                            {waypoints.map(([lng, lat], i) => (
-                              <div key={i} className="flex justify-between text-xs text-gray-600 bg-white rounded px-2 py-1">
-                                <span>WP {i + 1}</span>
-                                <span className="font-mono">{lat.toFixed(4)}, {lng.toFixed(4)}</span>
-                              </div>
-                            ))}
-                          </div>
-                        </div>
                       )}
                     </div>
-                  </div>
-
-                  {/* Separator */}
-                  <div className="hidden lg:block lg:w-px lg:bg-gray-300 lg:mx-4"></div>
-
-                  {/* Map Options */}
-                  <div className="flex-1">
-                <h3 className="text-sm font-semibold text-gray-900 mb-3">Map Options</h3>
-                
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                  {/* Map Style */}
-                  <div className="space-y-2">
-                    <h4 className="text-xs font-medium text-gray-700">Map Style</h4>
-                    <div className="space-y-1">
-                      <label className="flex items-center">
-                        <input
-                          type="radio"
-                          name="mapStyle"
-                          value="streets"
-                          checked={mapStyle === 'streets'}
-                          onChange={(e) => setMapStyle(e.target.value as 'streets' | 'satellite')}
-                          className="mr-1"
-                        />
-                        <span className="text-xs">Streets</span>
-                      </label>
-                      <label className="flex items-center">
-                        <input
-                          type="radio"
-                          name="mapStyle"
-                          value="satellite"
-                          checked={mapStyle === 'satellite'}
-                          onChange={(e) => setMapStyle(e.target.value as 'streets' | 'satellite')}
-                          className="mr-1"
-                        />
-                        <span className="text-xs">🛰️ Satellite</span>
-                      </label>
-            </div>
-          </div>
-
-                  {/* Tidal Buoys */}
-                  <div className="space-y-2">
-                    <h4 className="text-xs font-medium text-gray-700">Tide Data</h4>
-                    <label className="flex items-center">
-                      <input
-                        type="checkbox"
-                        checked={showTidalBuoys}
-                        onChange={(e) => setShowTidalBuoys(e.target.checked)}
-                        className="mr-1"
-                      />
-                      <span className="text-xs">Tidal Buoys</span>
-                    </label>
-        </div>
-
-
-                  {/* Sailing Features */}
-                  <div className="space-y-2">
-                    <h4 className="text-xs font-medium text-gray-700">Sailing</h4>
-                    <div className="space-y-1">
-                      <label className="flex items-center">
-                        <input
-                          type="checkbox"
-                          checked={showShippingLanes}
-                          onChange={(e) => setShowShippingLanes(e.target.checked)}
-                          className="mr-1"
-                        />
-                        <span className="text-xs">🚢 Shipping Lanes</span>
-                      </label>
-                      <label className="flex items-center">
-                        <input
-                          type="checkbox"
-                          checked={showHazards}
-                          onChange={(e) => setShowHazards(e.target.checked)}
-                          className="mr-1"
-                        />
-                        <span className="text-xs">Hazards</span>
-                      </label>
-                      <label className="flex items-center">
-                        <input
-                          type="checkbox"
-                          checked={showWaterDepths}
-                          onChange={(e) => setShowWaterDepths(e.target.checked)}
-                          className="mr-1"
-                        />
-                        <span className="text-xs">Water Depths</span>
-                      </label>
-                      <label className="flex items-center">
-                        <input
-                          type="checkbox"
-                          checked={showNavigationAids}
-                          onChange={(e) => setShowNavigationAids(e.target.checked)}
-                          className="mr-1"
-                        />
-                        <span className="text-xs">🧭 Navigation Aids</span>
-                      </label>
-                      <label className="flex items-center">
-                        <input
-                          type="checkbox"
-                          checked={showNauticalSigns}
-                          onChange={(e) => setShowNauticalSigns(e.target.checked)}
-                          className="mr-1"
-                        />
-                        <span className="text-xs">🚨 Nautical Signs</span>
-                      </label>
-                    </div>
-                  </div>
-
-                </div>
-
-                {/* Quick Preview Buttons */}
-                <div className="mt-4 pt-3 border-t border-gray-200">
-                  <div className="flex flex-wrap gap-1">
-                    <button
-                      onClick={() => {
-                        setMapStyle('streets')
-                        setShowTidalBuoys(true)
-                        setShowWeatherStations(false)
-                        setShowShippingLanes(false)
-                        setShowHazards(false)
-                        setShowWaterDepths(false)
-                        setShowNavigationAids(false)
-                        setShowNauticalSigns(false)
-                      }}
-                      className="px-2 py-1 text-xs bg-blue-100 text-blue-700 rounded hover:bg-blue-200"
-                    >
-                      Streets + Tides
-                    </button>
-                    <button
-                      onClick={() => {
-                        setMapStyle('satellite')
-                        setShowTidalBuoys(false)
-                        setShowWeatherStations(true)
-                        setShowShippingLanes(false)
-                        setShowHazards(false)
-                        setShowWaterDepths(false)
-                        setShowNavigationAids(false)
-                        setShowNauticalSigns(false)
-                      }}
-                      className="px-2 py-1 text-xs bg-green-100 text-green-700 rounded hover:bg-green-200"
-                    >
-                      🛰️ Satellite + Weather
-                    </button>
-                    <button
-                      onClick={() => {
-                        setMapStyle('streets')
-                        setShowTidalBuoys(true)
-                        setShowWeatherStations(true)
-                        setShowShippingLanes(true)
-                        setShowHazards(true)
-                        setShowWaterDepths(true)
-                        setShowNavigationAids(true)
-                        setShowNauticalSigns(true)
-                      }}
-                      className="px-2 py-1 text-xs bg-purple-100 text-purple-700 rounded hover:bg-purple-200"
-                    >
-                      🧭 All Sailing Data
-                    </button>
-                    <button
-                      onClick={() => {
-                        setMapStyle('streets')
-                        setShowTidalBuoys(false)
-                        setShowWeatherStations(false)
-                        setShowShippingLanes(false)
-                        setShowHazards(false)
-                        setShowWaterDepths(false)
-                        setShowNavigationAids(false)
-                        setShowNauticalSigns(false)
-                      }}
-                      className="px-2 py-1 text-xs bg-gray-100 text-gray-700 rounded hover:bg-gray-200"
-                    >
-                      Clean
-                    </button>
-                  </div>
-                </div>
+                    
+                    {waypoints.length === 0 ? (
+                      <div className="bg-white rounded-lg p-8 text-center shadow-sm">
+                        <div className="text-gray-400 mb-2">
+                          <svg className="w-12 h-12 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                          </svg>
+                        </div>
+                        <p className="text-gray-500 text-sm">Click on the map to add waypoints</p>
+                        <p className="text-gray-400 text-xs mt-1">Start planning your route by clicking on the map above</p>
+                      </div>
+                    ) : (
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                        {waypoints.map(([lng, lat], i) => (
+                          <div key={i} className="bg-white rounded-lg p-4 shadow-sm border-l-4 border-blue-500">
+                            <div className="flex items-center justify-between mb-2">
+                              <div className="flex items-center space-x-2">
+                                <div className="w-6 h-6 bg-blue-500 text-white rounded-full flex items-center justify-center text-xs font-bold">
+                                  {i + 1}
+                                </div>
+                                <span className="font-medium text-gray-900">Waypoint {i + 1}</span>
+                              </div>
+                              <button
+                                onClick={() => {
+                                  const newWaypoints = waypoints.filter((_, index) => index !== i)
+                                  setWaypoints(newWaypoints)
+                                }}
+                                className="text-red-500 hover:text-red-700 text-sm"
+                              >
+                                Remove
+                              </button>
+                            </div>
+                            <div className="text-xs text-gray-500 font-mono">
+                              {lat.toFixed(4)}°N, {lng.toFixed(4)}°W
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>

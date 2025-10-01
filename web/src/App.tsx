@@ -792,6 +792,11 @@ function App() {
                         {/* Current Wind Speed Indicator */}
                         {marine.windSpeedKts && !isNaN(marine.windSpeedKts) && (() => {
                           const windSpeed = Number(marine.windSpeedKts)
+                          
+                          // Find which Beaufort scale segment this wind speed falls into
+                          const currentScale = getBeaufortInfo(windSpeed)
+                          const scaleIndex = BEAUFORT_SCALE.findIndex(s => s.force === currentScale.force)
+                          
                           let indicatorPosition
                           if (useLogarithmic) {
                             // Use the same logarithmic calculation as segments
@@ -799,18 +804,26 @@ function App() {
                             const logTotal = Math.log(1 + 64)
                             indicatorPosition = (logWind / logTotal) * 100
                           } else {
-                            // Use the same linear calculation as segments
-                            indicatorPosition = (windSpeed / 64) * 100
+                            // Use the same linear calculation as segments - match the gauge segments exactly
+                            const scaleStart = currentScale.minKts
+                            const scaleEnd = currentScale.maxKts
+                            const scaleWidth = scaleEnd - scaleStart
+                            const positionInScale = (windSpeed - scaleStart) / scaleWidth
+                            
+                            // Calculate position within the gauge segment
+                            const segmentLeft = (currentScale.minKts / 64) * 100
+                            const segmentWidth = (scaleWidth / 64) * 100
+                            indicatorPosition = segmentLeft + (positionInScale * segmentWidth)
                           }
                           
                           return (
                             <div
                               className="absolute top-0 w-1 h-full bg-white border border-gray-400 shadow-lg z-20"
                               style={{
-                                left: `${Math.min(indicatorPosition, 100)}%`,
+                                left: `${Math.min(Math.max(indicatorPosition, 0), 100)}%`,
                                 transform: 'translateX(-50%)'
                               }}
-                              title={`Wind Speed: ${marine.windSpeedKts} kts, Position: ${Math.min(indicatorPosition, 100)}%`}
+                              title={`Wind Speed: ${marine.windSpeedKts} kts (Force ${currentScale.force}), Position: ${Math.min(Math.max(indicatorPosition, 0), 100)}%`}
                             />
                           )
                         })()}

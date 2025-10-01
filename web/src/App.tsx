@@ -126,6 +126,7 @@ function App() {
   const [showTidalBuoys, setShowTidalBuoys] = useState(false)
   const [showWeatherStations, setShowWeatherStations] = useState(false)
   const [isDarkMode, setIsDarkMode] = useState(false)
+  const [isMapStyleLoading, setIsMapStyleLoading] = useState(false)
 
   // Apply dark mode styles
   useEffect(() => {
@@ -181,9 +182,15 @@ function App() {
     if (mapRef.current || !mapContainerRef.current || isInitializing) return
     
     try {
-      const styleUrl = mapStyle === 'satellite' 
-        ? 'https://api.maptiler.com/maps/satellite/style.json?key=get_your_own_OpIi9ZULNHzrESv6T2vL'
-        : 'https://api.maptiler.com/maps/streets/style.json?key=get_your_own_OpIi9ZULNHzrESv6T2vL'
+      let styleUrl
+      if (mapStyle === 'satellite') {
+        styleUrl = 'https://api.maptiler.com/maps/satellite/style.json?key=get_your_own_OpIi9ZULNHzrESv6T2vL'
+      } else {
+        // Use dark or light streets based on dark mode
+        styleUrl = isDarkMode 
+          ? 'https://api.maptiler.com/maps/dark/style.json?key=get_your_own_OpIi9ZULNHzrESv6T2vL'
+          : 'https://api.maptiler.com/maps/streets/style.json?key=get_your_own_OpIi9ZULNHzrESv6T2vL'
+      }
       
     const map = new maplibregl.Map({
       container: mapContainerRef.current,
@@ -425,7 +432,10 @@ function App() {
 
   // Update map style when changed
   useEffect(() => {
-    if (!mapRef.current) return
+    if (!mapRef.current) {
+      console.log('Map ref not available for style update')
+      return
+    }
     
     let styleUrl
     if (mapStyle === 'satellite') {
@@ -437,22 +447,52 @@ function App() {
         : 'https://api.maptiler.com/maps/streets/style.json?key=get_your_own_OpIi9ZULNHzrESv6T2vL'
     }
     
-    // Add a small delay to prevent rapid style changes
+    console.log('Dark mode changed:', isDarkMode, 'Style URL:', styleUrl)
+    
+    // Debounce the style change to prevent rapid updates
     const timeoutId = setTimeout(() => {
+      if (!mapRef.current) {
+        console.log('Map ref not available during timeout')
+        return
+      }
+      
+      // Don't change style if already loading
+      if (isMapStyleLoading) {
+        console.log('Map style already loading, skipping update')
+        return
+      }
+      
       try {
-        if (mapRef.current) {
+        // Check if map is ready and not already loading a style
+        if (mapRef.current.isStyleLoaded && mapRef.current.isStyleLoaded()) {
+          console.log('Updating map style to:', styleUrl)
+          setIsMapStyleLoading(true)
           mapRef.current.setStyle(styleUrl)
+        } else {
+          console.log('Map not ready, waiting...')
+          // If map isn't ready, wait a bit more
+          setTimeout(() => {
+            if (mapRef.current && mapRef.current.isStyleLoaded && mapRef.current.isStyleLoaded()) {
+              console.log('Map ready, updating style to:', styleUrl)
+              setIsMapStyleLoading(true)
+              mapRef.current.setStyle(styleUrl)
+            } else {
+              console.log('Map still not ready after delay, skipping style update')
+            }
+          }, 1000)
         }
       } catch (error) {
         console.error('Map style update error:', error)
-        // Don't set error state, just log it
+        setIsMapStyleLoading(false)
+        // Don't show error to user, but log for debugging
       }
-    }, 100)
+    }, 500)
     
     return () => clearTimeout(timeoutId)
     
     // Re-add route line layer after style change
     mapRef.current?.on('style.load', () => {
+      setIsMapStyleLoading(false)
       if (!mapRef.current) return
       
       mapRef.current.addSource('route', {
@@ -476,6 +516,12 @@ function App() {
           'line-width': 3,
         },
       })
+    })
+    
+    // Handle style loading errors
+    mapRef.current?.on('error', (e) => {
+      console.error('Map error:', e)
+      setIsMapStyleLoading(false)
     })
   }, [mapStyle, isDarkMode])
 
@@ -953,20 +999,18 @@ function App() {
               {/* Dark Mode Toggle */}
         <button
           onClick={() => setIsDarkMode(!isDarkMode)}
-          className="bg-slate-600 text-white px-4 py-2 rounded-md border border-slate-600 hover:bg-slate-600 hover:border-blue-400 text-sm flex items-center space-x-2 transition-all duration-200"
+          className="bg-slate-600 text-white p-2 rounded-md border border-slate-600 hover:bg-slate-600 hover:border-blue-400 transition-all duration-200"
         >
           {isDarkMode ? <FaSun className="w-4 h-4" /> : <FaMoon className="w-4 h-4" />}
-          <span>{isDarkMode ? 'Light' : 'Dark'}</span>
         </button>
 
               {/* Refresh Button */}
               <button
                 onClick={fetchData}
                 disabled={loading}
-                className="bg-blue-600 text-white px-4 py-2 rounded-md border border-blue-600 hover:bg-blue-500 hover:border-blue-400 disabled:opacity-50 disabled:cursor-not-allowed text-sm flex items-center space-x-2 transition-all duration-200"
+                className="bg-blue-600 text-white p-2 rounded-md border border-blue-600 hover:bg-blue-500 hover:border-blue-400 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200"
               >
                 <FaRedo className="w-4 h-4" />
-                <span>{loading ? 'Loading...' : 'Refresh'}</span>
               </button>
             </div>
           </div>
@@ -997,10 +1041,10 @@ function App() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="space-y-0">
             {/* Weather/Wind Card */}
-            <div className={`bg-gradient-to-br rounded-lg shadow-sm border transition-all duration-300 hover:shadow-2xl hover:scale-102 hover:animate-pulse ${
+            <div className={`bg-gradient-to-br rounded-lg shadow-sm border transition-all duration-300 ${
               isWindExpanded 
                 ? 'from-blue-50 to-blue-100 border-blue-300 shadow-lg ring-2 ring-blue-100' 
-                : 'from-slate-50 to-slate-100 border-slate-200 hover:from-blue-50 hover:to-blue-100 hover:border-blue-200'
+                : 'from-slate-50 to-slate-100 border-slate-200 hover:shadow-2xl hover:scale-102 hover:animate-pulse hover:from-blue-50 hover:to-blue-100 hover:border-blue-200'
             }`}>
               {/* Collapsible Header */}
               <div 
@@ -1313,10 +1357,10 @@ function App() {
             </div>
 
             {/* Tides Card */}
-            <div className={`bg-gradient-to-br rounded-lg shadow-sm border transition-all duration-300 hover:shadow-2xl hover:scale-102 hover:animate-pulse ${
+            <div className={`bg-gradient-to-br rounded-lg shadow-sm border transition-all duration-300 ${
               isTidesExpanded 
                 ? 'from-cyan-50 to-teal-100 border-cyan-300 shadow-lg ring-2 ring-cyan-100' 
-                : 'from-slate-50 to-slate-100 border-slate-200 hover:from-cyan-50 hover:to-teal-100 hover:border-cyan-200'
+                : 'from-slate-50 to-slate-100 border-slate-200 hover:shadow-2xl hover:scale-102 hover:animate-pulse hover:from-cyan-50 hover:to-teal-100 hover:border-cyan-200'
             }`}>
               {/* Collapsible Header */}
               <div 
@@ -1829,10 +1873,10 @@ function App() {
             </div>
 
             {/* Temperature Card */}
-            <div className={`bg-gradient-to-br rounded-lg shadow-sm border transition-all duration-300 hover:shadow-2xl hover:scale-102 hover:animate-pulse ${
+            <div className={`bg-gradient-to-br rounded-lg shadow-sm border transition-all duration-300 ${
               isTemperatureExpanded 
                 ? 'from-orange-50 to-amber-100 border-orange-300 shadow-lg ring-2 ring-orange-100' 
-                : 'from-slate-50 to-slate-100 border-slate-200 hover:from-orange-50 hover:to-amber-100 hover:border-orange-200'
+                : 'from-slate-50 to-slate-100 border-slate-200 hover:shadow-2xl hover:scale-102 hover:animate-pulse hover:from-orange-50 hover:to-amber-100 hover:border-orange-200'
             }`}>
               {/* Collapsible Header */}
               <div 
@@ -2077,62 +2121,9 @@ function App() {
       {/* Route Planner Section */}
       <section className="bg-gray-50 py-6">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            {/* Route Planner Controls */}
-            <div className="lg:col-span-1">
-            <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">Route Planner</h3>
-              <div className="space-y-4">
-                <div className="text-sm text-gray-600">
-                  Waypoints: {waypoints.length}
-                  {etaSummary && (
-                    <span className="ml-2">• Distance: {etaSummary.distanceNm.toFixed(1)} nm</span>
-                  )}
-                </div>
-                {etaSummary && (
-                  <div className="bg-gray-50 rounded-lg p-4 space-y-2">
-                    <div className="text-sm text-gray-600">Realistic Sailing ETA</div>
-                    <div className="text-xl font-bold text-gray-900">{etaSummary.hours.toFixed(1)} hours</div>
-                    {etaSummary.breakdown && (
-                      <div className="text-xs text-gray-500 space-y-1">
-                        <div>Harbor exit: {etaSummary.breakdown.harborExit.toFixed(1)}h</div>
-                        <div>Sailing: {etaSummary.breakdown.sailingTime.toFixed(1)}h</div>
-                        <div>Wind: {etaSummary.breakdown.windSpeed.toFixed(1)} kts {getWindDirection(etaSummary.breakdown.windDirection)}</div>
-                        <div>Efficiency: {(etaSummary.breakdown.efficiency * 100).toFixed(0)}%</div>
-                        {etaSummary.breakdown.tackingPenalty > 1 && (
-                          <div className="text-orange-600">Tacking penalty: +{((etaSummary.breakdown.tackingPenalty - 1) * 100).toFixed(0)}%</div>
-                        )}
-                      </div>
-                    )}
-                  </div>
-                )}
-                <div className="flex space-x-2">
-                  <button
-                    onClick={() => setWaypoints([])}
-                    className="flex-1 bg-red-600 text-white py-2 px-4 rounded-md hover:bg-red-700 text-sm"
-                  >
-                    Clear All
-                  </button>
-                </div>
-                {waypoints.length > 0 && (
-                  <div className="max-h-32 overflow-y-auto">
-                    <div className="text-sm font-medium text-gray-900 mb-2">Waypoints:</div>
-                    <div className="space-y-1">
-                      {waypoints.map(([lng, lat], i) => (
-                        <div key={i} className="flex justify-between text-xs text-gray-600 bg-gray-50 rounded px-2 py-1">
-                          <span>WP {i + 1}</span>
-                          <span className="font-mono">{lat.toFixed(4)}, {lng.toFixed(4)}</span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
+          <div className="space-y-6">
 
             {/* Bay Area Map */}
-          <div className="lg:col-span-2">
             <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
               <div className="p-4 border-b border-gray-200">
                 <h2 className="text-lg font-semibold text-gray-900">Bay Area Map</h2>
@@ -2146,8 +2137,65 @@ function App() {
                   />
               </div>
               
-              {/* Map Options */}
+              {/* Map Options and Route Planner Row */}
               <div className="p-4 border-t border-gray-200 bg-gray-50">
+                <div className="flex flex-col lg:flex-row gap-6">
+                  {/* Route Planner */}
+                  <div className="flex-1">
+                    <h3 className="text-sm font-semibold text-gray-900 mb-3">Route Planner</h3>
+                    <div className="space-y-4">
+                      <div className="text-sm text-gray-600">
+                        Waypoints: {waypoints.length}
+                        {etaSummary && (
+                          <span className="ml-2">• Distance: {etaSummary.distanceNm.toFixed(1)} nm</span>
+                        )}
+                      </div>
+                      {etaSummary && (
+                        <div className="bg-white rounded-lg p-4 space-y-2">
+                          <div className="text-sm text-gray-600">Realistic Sailing ETA</div>
+                          <div className="text-xl font-bold text-gray-900">{etaSummary.hours.toFixed(1)} hours</div>
+                          {etaSummary.breakdown && (
+                            <div className="text-xs text-gray-500 space-y-1">
+                              <div>Harbor exit: {etaSummary.breakdown.harborExit.toFixed(1)}h</div>
+                              <div>Sailing: {etaSummary.breakdown.sailingTime.toFixed(1)}h</div>
+                              <div>Wind: {etaSummary.breakdown.windSpeed.toFixed(1)} kts {getWindDirection(etaSummary.breakdown.windDirection)}</div>
+                              <div title="Sailing efficiency based on wind angle: 10% (dead upwind) to 90% (broad reach)">Efficiency: {(etaSummary.breakdown.efficiency * 100).toFixed(0)}%</div>
+                              {etaSummary.breakdown.tackingPenalty > 1 && (
+                                <div className="text-orange-600">Tacking penalty: +{((etaSummary.breakdown.tackingPenalty - 1) * 100).toFixed(0)}%</div>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      )}
+                      <div className="flex space-x-2">
+                        <button
+                          onClick={() => setWaypoints([])}
+                          className="flex-1 bg-red-600 text-white py-2 px-4 rounded-md hover:bg-red-700 text-sm"
+                        >
+                          Clear All
+                        </button>
+                      </div>
+                      {waypoints.length > 0 && (
+                        <div className="max-h-32 overflow-y-auto">
+                          <div className="text-sm font-medium text-gray-900 mb-2">Waypoints:</div>
+                          <div className="space-y-1">
+                            {waypoints.map(([lng, lat], i) => (
+                              <div key={i} className="flex justify-between text-xs text-gray-600 bg-white rounded px-2 py-1">
+                                <span>WP {i + 1}</span>
+                                <span className="font-mono">{lat.toFixed(4)}, {lng.toFixed(4)}</span>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Separator */}
+                  <div className="hidden lg:block lg:w-px lg:bg-gray-300 lg:mx-4"></div>
+
+                  {/* Map Options */}
+                  <div className="flex-1">
                 <h3 className="text-sm font-semibold text-gray-900 mb-3">Map Options</h3>
                 
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
@@ -2194,19 +2242,6 @@ function App() {
                     </label>
         </div>
 
-                  {/* Weather Stations */}
-                  <div className="space-y-2">
-                    <h4 className="text-xs font-medium text-gray-700">Weather</h4>
-                    <label className="flex items-center">
-                      <input
-                        type="checkbox"
-                        checked={showWeatherStations}
-                        onChange={(e) => setShowWeatherStations(e.target.checked)}
-                        className="mr-1"
-                      />
-                      <span className="text-xs">Weather</span>
-                    </label>
-                  </div>
 
                   {/* Sailing Features */}
                   <div className="space-y-2">
@@ -2327,10 +2362,11 @@ function App() {
                     </button>
                   </div>
                 </div>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
-        </div>
         </div>
       </section>
 
@@ -2494,7 +2530,7 @@ function calculateTackingPenalty(
   
   // If sailing upwind (wind angle < 45°), add tacking penalty
   if (normalizedAngle < 0.25) {
-    return 1.4 // 40% extra distance due to tacking
+    return 1.15 // 15% extra distance due to tacking
   }
   
   return 1.0 // No tacking penalty

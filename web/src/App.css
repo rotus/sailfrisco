@@ -361,7 +361,7 @@
 }
 
 .animate-bounceIn {
-  animation: bounceIn 0.6s ease-out;
+  animation: bounceIn 0.3s ease-out;
 }
 
 .animate-fadeIn {

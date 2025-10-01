@@ -1571,12 +1571,13 @@ function App() {
                                 <div 
                                   className="absolute top-0 w-2 h-full bg-white border-2 border-gray-800 shadow-lg z-30 rounded-full animate-pulse"
                                   style={{
-                                    left: `${Math.max(0, Math.min(100, ((marine.temperatureC + 20) / 60) * 100))}%`,
+                                    left: `${Math.max(0, Math.min(100, ((Number(marine.temperatureC) + 20) / 60) * 100))}%`,
                                     transform: 'translateX(-50%)',
                                     boxShadow: '0 0 10px rgba(0,0,0,0.3), 0 0 20px rgba(255,255,255,0.5)'
                                   }}
+                                  title={`Temperature: ${marine.temperatureC}°C`}
                                 />
-              )}
+                              )}
             </div>
 
                             {/* Temperature labels below */}

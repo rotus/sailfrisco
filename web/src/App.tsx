@@ -457,7 +457,7 @@ function App() {
           <div className="flex justify-between items-center h-16">
             <div className="flex items-center">
               <div className="flex items-center space-x-3">
-                <div className="w-10 h-10 bg-white rounded-lg flex items-center justify-center shadow-lg">
+                <div className="w-10 h-10 bg-white rounded-lg flex items-center justify-center shadow-lg header-logo">
                   <MdSailing className="w-6 h-6 text-blue-600" />
                 </div>
                 <h1 className="text-xl font-bold text-white">SailFrisco</h1>
@@ -516,13 +516,6 @@ function App() {
           {isDarkMode ? <FaSun className="w-4 h-4" /> : <FaMoon className="w-4 h-4" />}
         </button>
 
-              {/* Satellite Toggle */}
-              <button
-                onClick={() => setMapStyle(mapStyle === 'streets' ? 'satellite' : 'streets')}
-                className="bg-slate-600 text-white p-2 rounded-md border border-slate-600 hover:bg-slate-600 hover:border-blue-400 transition-all duration-200"
-              >
-                <FaSatellite className="w-4 h-4" />
-              </button>
 
               {/* Refresh Button */}
               <button
@@ -1646,8 +1639,19 @@ function App() {
             {/* Bay Area Map */}
             <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
               <div className="p-4 border-b border-gray-200">
-                <h2 className="text-lg font-semibold text-gray-900">Bay Area Map</h2>
-                <p className="text-sm text-gray-600">Click to add waypoints, select harbor to center map</p>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h2 className="text-lg font-semibold text-gray-900">Bay Area Map</h2>
+                    <p className="text-sm text-gray-600">Click to add waypoints, select harbor to center map</p>
+                  </div>
+                  <button
+                    onClick={() => setMapStyle(mapStyle === 'streets' ? 'satellite' : 'streets')}
+                    className="bg-slate-600 text-white p-2 rounded-md border border-slate-600 hover:bg-slate-600 hover:border-blue-400 transition-all duration-200"
+                    title={mapStyle === 'streets' ? 'Switch to Satellite' : 'Switch to Streets'}
+                  >
+                    <FaSatellite className="w-4 h-4" />
+                  </button>
+                </div>
               </div>
               <div className="p-4">
                   <div 

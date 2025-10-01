@@ -379,6 +379,16 @@
   color: #f9fafb; /* Light text */
 }
 
+/* Protect header sailboat icon from dark mode changes */
+.dark .header-logo {
+  background-color: #ffffff !important;
+  color: #2563eb !important;
+}
+
+.dark .header-logo .text-blue-600 {
+  color: #2563eb !important;
+}
+
 .dark .bg-gray-50 {
   background-color: #1f2937; /* Dark section background */
 }

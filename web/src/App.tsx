@@ -417,11 +417,72 @@ function App() {
     const timeoutId = setTimeout(() => {
       if (mapRef.current && mapRef.current.isStyleLoaded && mapRef.current.isStyleLoaded()) {
         mapRef.current.setStyle(styleUrl)
+        
+        // Redraw route line after style change
+        mapRef.current.once('styledata', () => {
+          if (waypoints.length > 0 && mapRef.current) {
+            const routeCoordinates = [[HARBORS[harbor].lon, HARBORS[harbor].lat], ...waypoints]
+            
+            // Add route source if it doesn't exist
+            if (!mapRef.current.getSource('route')) {
+              mapRef.current.addSource('route', {
+                type: 'geojson',
+                data: {
+                  type: 'FeatureCollection',
+                  features: routeCoordinates.length >= 2 ? [
+                    {
+                      type: 'Feature',
+                      geometry: {
+                        type: 'LineString',
+                        coordinates: routeCoordinates
+                      },
+                      properties: {}
+                    }
+                  ] : []
+                }
+              })
+            } else {
+              // Update existing route source
+              const source = mapRef.current.getSource('route') as any
+              source.setData({
+                type: 'FeatureCollection',
+                features: routeCoordinates.length >= 2 ? [
+                  {
+                    type: 'Feature',
+                    geometry: {
+                      type: 'LineString',
+                      coordinates: routeCoordinates
+                    },
+                    properties: {}
+                  }
+                ] : []
+              })
+            }
+            
+            // Add route line layer if it doesn't exist
+            if (!mapRef.current.getLayer('route-line')) {
+              mapRef.current.addLayer({
+                id: 'route-line',
+                type: 'line',
+                source: 'route',
+                layout: {
+                  'line-join': 'round',
+                  'line-cap': 'round'
+                },
+                paint: {
+                  'line-color': '#3b82f6',
+                  'line-width': 3,
+                  'line-opacity': 0.8
+                }
+              })
+            }
+          }
+        })
       }
     }, 100)
     
     return () => clearTimeout(timeoutId)
-  }, [mapStyle]) // Removed isDarkMode dependency
+  }, [mapStyle, waypoints, harbor]) // Added waypoints and harbor dependencies
 
 
 

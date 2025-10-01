@@ -126,9 +126,8 @@ function App() {
   const [showTidalBuoys, setShowTidalBuoys] = useState(false)
   const [showWeatherStations, setShowWeatherStations] = useState(false)
   const [isDarkMode, setIsDarkMode] = useState(false)
-  const [isMapStyleLoading, setIsMapStyleLoading] = useState(false)
 
-  // Apply dark mode styles
+  // Apply dark mode styles - simple color inversion
   useEffect(() => {
     if (isDarkMode) {
       document.documentElement.classList.add('dark')
@@ -430,86 +429,27 @@ function App() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [harbor])
 
-  // Update map style when changed
+  // Update map style when changed (NO DARK MODE - map stays the same)
   useEffect(() => {
-    if (!mapRef.current) {
-      console.log('Map ref not available for style update')
-      return
-    }
+    if (!mapRef.current) return
     
     let styleUrl
     if (mapStyle === 'satellite') {
       styleUrl = 'https://api.maptiler.com/maps/satellite/style.json?key=get_your_own_OpIi9ZULNHzrESv6T2vL'
     } else {
-      // Use dark or light streets based on dark mode
-      styleUrl = isDarkMode 
-        ? 'https://api.maptiler.com/maps/dark/style.json?key=get_your_own_OpIi9ZULNHzrESv6T2vL'
-        : 'https://api.maptiler.com/maps/streets/style.json?key=get_your_own_OpIi9ZULNHzrESv6T2vL'
+      // Always use light streets - no dark mode for map
+      styleUrl = 'https://api.maptiler.com/maps/streets/style.json?key=get_your_own_OpIi9ZULNHzrESv6T2vL'
     }
     
-    // console.log('Dark mode changed:', isDarkMode, 'Style URL:', styleUrl)
-    
-    // Debounce the style change to prevent rapid updates
+    // Simple style change without dark mode complications
     const timeoutId = setTimeout(() => {
-      if (!mapRef.current || isMapStyleLoading) {
-        return
+      if (mapRef.current && mapRef.current.isStyleLoaded && mapRef.current.isStyleLoaded()) {
+        mapRef.current.setStyle(styleUrl)
       }
-      
-      try {
-        // Check if map is ready and not already loading a style
-        if (mapRef.current.isStyleLoaded && mapRef.current.isStyleLoaded()) {
-          setIsMapStyleLoading(true)
-          mapRef.current.setStyle(styleUrl)
-        } else {
-          // If map isn't ready, wait a bit more
-          setTimeout(() => {
-            if (mapRef.current && mapRef.current.isStyleLoaded && mapRef.current.isStyleLoaded() && !isMapStyleLoading) {
-              setIsMapStyleLoading(true)
-              mapRef.current.setStyle(styleUrl)
-            }
-          }, 1000)
-        }
-      } catch (error) {
-        setIsMapStyleLoading(false)
-        // Silently handle errors
-      }
-    }, 500)
+    }, 100)
     
     return () => clearTimeout(timeoutId)
-    
-    // Re-add route line layer after style change
-    mapRef.current?.on('style.load', () => {
-      setIsMapStyleLoading(false)
-      if (!mapRef.current) return
-      
-      mapRef.current.addSource('route', {
-        type: 'geojson',
-        data: {
-          type: 'FeatureCollection',
-          features: []
-        }
-      })
-      
-      mapRef.current.addLayer({
-        id: 'route-line',
-        type: 'line',
-        source: 'route',
-        layout: {
-          'line-join': 'round',
-          'line-cap': 'round'
-        },
-        paint: {
-          'line-color': '#3b82f6',
-          'line-width': 3,
-        },
-      })
-    })
-    
-    // Handle style loading errors
-    mapRef.current?.on('error', () => {
-      setIsMapStyleLoading(false)
-    })
-  }, [mapStyle, isDarkMode])
+  }, [mapStyle]) // Removed isDarkMode dependency
 
   // Show/hide tidal buoys
   useEffect(() => {
@@ -2145,7 +2085,7 @@ function App() {
                               <div>Harbor exit: {etaSummary.breakdown.harborExit.toFixed(1)}h</div>
                               <div>Sailing: {etaSummary.breakdown.sailingTime.toFixed(1)}h</div>
                               <div>Wind: {etaSummary.breakdown.windSpeed.toFixed(1)} kts {getWindDirection(etaSummary.breakdown.windDirection)}</div>
-                              <div title="Sailing efficiency based on wind angle: 10% (dead upwind), 60% (close hauled), 80% (beam reach), 90% (broad reach)">Efficiency: {(etaSummary.breakdown.efficiency * 100).toFixed(0)}%</div>
+                              <div title="Sailing efficiency based on wind angle: 60% (close hauled), 80% (beam reach), 90% (broad reach)">Efficiency: {(etaSummary.breakdown.efficiency * 100).toFixed(0)}%</div>
                               {etaSummary.breakdown.tackingPenalty > 1 && (
                                 <div className="text-orange-600">Tacking penalty: +{((etaSummary.breakdown.tackingPenalty - 1) * 100).toFixed(0)}%</div>
                               )}
@@ -2495,7 +2435,6 @@ function calculateSailingEfficiency(
   const normalizedAngle = Math.min(windAngle, 360 - windAngle) / 180
   
   // Sailing efficiency based on wind angle
-  if (normalizedAngle < 0.1) return 0.1 // Dead upwind - very slow
   if (normalizedAngle < 0.3) return 0.6 // Close hauled - decent speed but extra distance
   if (normalizedAngle < 0.6) return 0.8 // Beam reach - good
   if (normalizedAngle < 0.8) return 0.9 // Broad reach - excellent

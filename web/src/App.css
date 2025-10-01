@@ -367,3 +367,42 @@
 .animate-fadeIn {
   animation: fadeIn 0.3s ease-out;
 }
+
+/* Dark Mode Styles */
+.dark {
+  background-color: #1f2937; /* Dark gray background */
+  color: #f9fafb; /* Light text */
+}
+
+.dark .bg-white {
+  background-color: #374151; /* Dark card background */
+  color: #f9fafb; /* Light text */
+}
+
+.dark .bg-gray-50 {
+  background-color: #1f2937; /* Dark section background */
+}
+
+.dark .bg-gray-200 {
+  background-color: #374151; /* Dark footer background */
+}
+
+.dark .text-gray-800 {
+  color: #f9fafb; /* Light text */
+}
+
+.dark .text-gray-600 {
+  color: #d1d5db; /* Light gray text */
+}
+
+.dark .text-gray-500 {
+  color: #9ca3af; /* Medium gray text */
+}
+
+.dark .border-gray-200 {
+  border-color: #4b5563; /* Dark border */
+}
+
+.dark .border-gray-400 {
+  border-color: #6b7280; /* Darker border */
+}

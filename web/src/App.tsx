@@ -14,6 +14,7 @@ import {
   // Material Design - main logo
   MdSailing
 } from 'react-icons/md'
+import BeaufortHeaderOptions from './BeaufortHeaderOptions'
 
 type HarborKey = 'Sausalito' | 'Berkeley' | 'Alameda' | 'San Francisco' | 'Richmond'
 
@@ -26,9 +27,9 @@ const HARBORS: Record<HarborKey, { lat: number; lon: number; tideStation: string
 }
 
 // Beaufort Wind Scale data with color coding and wave heights
+// Note: Force 0 eliminated - any wind < 1 kt is rounded up to Force 1
 const BEAUFORT_SCALE = [
-  { force: 0, name: 'Calm', minKts: 0, maxKts: 1, color: '#E3F2FD', textColor: '#1976D2', description: 'Calm', waveHeight: '0 ft' },
-  { force: 1, name: 'Light Air', minKts: 1, maxKts: 3, color: '#BBDEFB', textColor: '#1565C0', description: 'Light Air', waveHeight: '0-1 ft' },
+  { force: 1, name: 'Light Air', minKts: 0, maxKts: 3, color: '#BBDEFB', textColor: '#1565C0', description: 'Light Air', waveHeight: '0-1 ft' },
   { force: 2, name: 'Light Breeze', minKts: 4, maxKts: 6, color: '#C8E6C9', textColor: '#2E7D32', description: 'Light Breeze', waveHeight: '1-2 ft' },
   { force: 3, name: 'Gentle Breeze', minKts: 7, maxKts: 10, color: '#A5D6A7', textColor: '#388E3C', description: 'Gentle Breeze', waveHeight: '2-4 ft' },
   { force: 4, name: 'Moderate Breeze', minKts: 11, maxKts: 16, color: '#DCEDC8', textColor: '#689F38', description: 'Moderate Breeze', waveHeight: '3-5 ft' },
@@ -43,18 +44,22 @@ const BEAUFORT_SCALE = [
 ]
 
 // Helper function to get Beaufort scale info for wind speed
+// Force 0 eliminated: any wind < 1 kt is rounded up to Force 1
 function getBeaufortInfo(windSpeedKts: number | null | undefined) {
   if (windSpeedKts === null || windSpeedKts === undefined || isNaN(windSpeedKts)) {
-    return BEAUFORT_SCALE[0] // Default to Calm
+    return BEAUFORT_SCALE[0] // Default to Force 1 (Light Air)
   }
   
-  console.log('Wind speed for Beaufort:', windSpeedKts, 'kts')
+  // Round up any wind < 1 kt to Force 1 (eliminate Force 0)
+  const adjustedWindSpeed = windSpeedKts < 1 ? 1 : windSpeedKts
   
-  // FIXED LOGIC: Find the first scale where windSpeedKts is less than or equal to maxKts
+  console.log('Wind speed for Beaufort:', windSpeedKts, 'kts (adjusted:', adjustedWindSpeed, 'kts)')
+  
+  // FIXED LOGIC: Find the first scale where adjustedWindSpeed is less than or equal to maxKts
   // This handles gaps in ranges properly
   for (let i = 0; i < BEAUFORT_SCALE.length; i++) {
     const scale = BEAUFORT_SCALE[i]
-    if (windSpeedKts <= scale.maxKts) {
+    if (adjustedWindSpeed <= scale.maxKts) {
       console.log(`Matched Force ${scale.force}: ${scale.description}`)
       return scale
     }
@@ -115,15 +120,18 @@ function App() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [isInitializing, setIsInitializing] = useState(true)
-  const [useLogarithmic, setUseLogarithmic] = useState(true)
   const [tideViewHours, setTideViewHours] = useState(24)
   const [isWindExpanded, setIsWindExpanded] = useState(false)
   const [isTidesExpanded, setIsTidesExpanded] = useState(false)
   const [isTemperatureExpanded, setIsTemperatureExpanded] = useState(false)
-  const [beaufortLegendOption, setBeaufortLegendOption] = useState<'none' | 'option1' | 'option2' | 'option3'>('none')
   const [temperatureUnit, setTemperatureUnit] = useState<'celsius' | 'fahrenheit'>('fahrenheit')
   const [mapStyle, setMapStyle] = useState<'streets' | 'satellite'>('streets')
   const [isDarkMode, setIsDarkMode] = useState(false)
+  const [showBeaufortHeaderOptions, setShowBeaufortHeaderOptions] = useState(false)
+  const [showHarborInstruction, setShowHarborInstruction] = useState(true)
+  const [showBoatInstruction, setShowBoatInstruction] = useState(false)
+  const [isHarborInstructionPopping, setIsHarborInstructionPopping] = useState(false)
+  const [isBoatInstructionPopping, setIsBoatInstructionPopping] = useState(false)
 
   // Apply dark mode styles - simple color inversion
   useEffect(() => {
@@ -133,6 +141,37 @@ function App() {
       document.documentElement.classList.remove('dark')
     }
   }, [isDarkMode])
+
+  // Show harbor instruction on initial load, then hide after 5 seconds
+  // Show boat instruction at 4 seconds, both disappear at same time (5 seconds)
+  useEffect(() => {
+    if (showHarborInstruction) {
+      // Show boat instruction at 4 seconds
+      const boatTimer = setTimeout(() => {
+        setShowBoatInstruction(true)
+      }, 4000)
+      
+      // Start pop animation for both at 4.5 seconds
+      const popTimer = setTimeout(() => {
+        setIsHarborInstructionPopping(true)
+        setIsBoatInstructionPopping(true)
+      }, 4500)
+      
+      // Hide both instructions after 5 seconds (same time)
+      const hideTimer = setTimeout(() => {
+        setShowHarborInstruction(false)
+        setShowBoatInstruction(false)
+        setIsHarborInstructionPopping(false)
+        setIsBoatInstructionPopping(false)
+      }, 5000)
+      
+      return () => {
+        clearTimeout(boatTimer)
+        clearTimeout(popTimer)
+        clearTimeout(hideTimer)
+      }
+    }
+  }, [showHarborInstruction])
 
   const mapRef = useRef<Map | null>(null)
   const mapContainerRef = useRef<HTMLDivElement | null>(null)
@@ -160,7 +199,7 @@ function App() {
         // Use dark or light streets based on dark mode
         styleUrl = isDarkMode 
           ? 'https://api.maptiler.com/maps/dark/style.json?key=get_your_own_OpIi9ZULNHzrESv6T2vL'
-          : 'https://api.maptiler.com/maps/streets/style.json?key=get_your_own_OpIi9ZULNHzrESv6T2vL'
+        : 'https://api.maptiler.com/maps/streets/style.json?key=get_your_own_OpIi9ZULNHzrESv6T2vL'
       }
       
     const map = new maplibregl.Map({
@@ -416,7 +455,7 @@ function App() {
     // Simple style change without dark mode complications
     const timeoutId = setTimeout(() => {
       if (mapRef.current && mapRef.current.isStyleLoaded && mapRef.current.isStyleLoaded()) {
-        mapRef.current.setStyle(styleUrl)
+          mapRef.current.setStyle(styleUrl)
         
         // Redraw route line after style change
         mapRef.current.once('styledata', () => {
@@ -425,15 +464,15 @@ function App() {
             
             // Add route source if it doesn't exist
             if (!mapRef.current.getSource('route')) {
-              mapRef.current.addSource('route', {
-                type: 'geojson',
-                data: {
-                  type: 'FeatureCollection',
+      mapRef.current.addSource('route', {
+        type: 'geojson',
+        data: {
+          type: 'FeatureCollection',
                   features: routeCoordinates.length >= 2 ? [
-                    {
-                      type: 'Feature',
-                      geometry: {
-                        type: 'LineString',
+              {
+                type: 'Feature',
+                geometry: {
+                  type: 'LineString',
                         coordinates: routeCoordinates
                       },
                       properties: {}
@@ -441,16 +480,16 @@ function App() {
                   ] : []
                 }
               })
-            } else {
+    } else {
               // Update existing route source
               const source = mapRef.current.getSource('route') as any
               source.setData({
-                type: 'FeatureCollection',
+            type: 'FeatureCollection',
                 features: routeCoordinates.length >= 2 ? [
-                  {
-                    type: 'Feature',
-                    geometry: {
-                      type: 'LineString',
+              {
+                type: 'Feature',
+                geometry: {
+                  type: 'LineString',
                       coordinates: routeCoordinates
                     },
                     properties: {}
@@ -463,13 +502,13 @@ function App() {
             if (!mapRef.current.getLayer('route-line')) {
               mapRef.current.addLayer({
                 id: 'route-line',
-                type: 'line',
+          type: 'line',
                 source: 'route',
                 layout: {
                   'line-join': 'round',
                   'line-cap': 'round'
                 },
-                paint: {
+          paint: {
                   'line-color': '#3b82f6',
                   'line-width': 3,
                   'line-opacity': 0.8
@@ -526,9 +565,9 @@ function App() {
             </div>
             
             {/* Controls */}
-            <div className="flex items-center space-x-4">
+            <div className="flex items-center space-x-4 relative">
             {/* Harbor Selection */}
-              <div className="flex items-center space-x-2">
+              <div className="flex items-center space-x-2 relative">
                 <label className="text-sm font-medium text-gray-300">Harbor:</label>
               <select
                   className="p-2 border border-gray-600 bg-slate-700 text-white rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm hover:bg-slate-600 hover:border-blue-400 transition-all duration-200"
@@ -539,10 +578,22 @@ function App() {
                   <option key={h} value={h}>{h}</option>
                 ))}
               </select>
+              
+              {/* Harbor Instruction Tooltip */}
+              {showHarborInstruction && (
+                <div className={`absolute top-full right-0 mt-2 z-50 ${isHarborInstructionPopping ? 'animate-balloon-pop' : 'animate-pop-in'}`}>
+                  <div className="relative bg-yellow-100 border-2 border-yellow-400 rounded-lg shadow-2xl px-4 py-3 max-w-xs">
+                    <div className="absolute -top-2 right-6 w-4 h-4 bg-yellow-100 border-l-2 border-t-2 border-yellow-400 transform rotate-45"></div>
+                    <p className="text-sm text-gray-800 font-handwritten">
+                      👋 Start here! Select your harbor to get started
+                    </p>
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* Boat Selection */}
-              <div className="flex items-center space-x-2">
+              <div className="flex items-center space-x-2 relative">
                 <label className="text-sm font-medium text-gray-300">Boat:</label>
               <select
                   className="p-2 border border-gray-600 bg-slate-700 text-white rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm hover:bg-slate-600 hover:border-blue-400 transition-all duration-200"
@@ -554,6 +605,18 @@ function App() {
                   <option value="40ft">40 ft</option>
                   <option value="50ft">50 ft</option>
               </select>
+              
+              {/* Boat Instruction Tooltip */}
+              {showBoatInstruction && (
+                <div className={`absolute top-full right-0 mt-2 z-50 ${isBoatInstructionPopping ? 'animate-balloon-pop' : 'animate-pop-in'}`}>
+                  <div className="relative bg-blue-100 border-2 border-blue-400 rounded-lg shadow-2xl px-4 py-3 max-w-xs">
+                    <div className="absolute -top-2 right-6 w-4 h-4 bg-blue-100 border-l-2 border-t-2 border-blue-400 transform rotate-45"></div>
+                    <p className="text-sm text-gray-800 font-handwritten">
+                      ⛵ Now select your boat size!
+                    </p>
+                  </div>
+                </div>
+              )}
             </div>
 
               {/* Map Style Selection - temporarily disabled */}
@@ -671,205 +734,223 @@ function App() {
                 <>
                   {/* Wind Scale Visualization */}
                   <div className="mb-6">
-                    <div className="flex items-center justify-between mb-4">
+                    <div className="mb-4 flex items-center justify-between">
                       <h3 className="text-lg font-semibold text-blue-900">
                         Wind Scale
                       </h3>
-                      <div className="flex items-center space-x-4">
-                        <div className="flex items-center space-x-2">
-                          <span className="text-xs text-blue-700">Scale:</span>
                           <button
-                            onClick={() => setUseLogarithmic(false)}
-                            className={`px-2 py-1 text-xs rounded ${
-                              !useLogarithmic 
-                                ? 'bg-blue-600 text-white' 
-                                : 'bg-blue-100 text-blue-700 hover:bg-blue-200'
-                            }`}
-                          >
-                            Linear
+                        onClick={() => setShowBeaufortHeaderOptions(true)}
+                        className="px-3 py-1 text-xs rounded bg-blue-100 text-blue-700 hover:bg-blue-200 transition-colors"
+                      >
+                        Header Options
                           </button>
-                          <button
-                            onClick={() => setUseLogarithmic(true)}
-                            className={`px-2 py-1 text-xs rounded ${
-                              useLogarithmic 
-                                ? 'bg-blue-600 text-white' 
-                                : 'bg-blue-100 text-blue-700 hover:bg-blue-200'
-                            }`}
-                          >
-                            Log
-                          </button>
-                    </div>
-                        <div className="flex items-center space-x-2">
-                          <span className="text-xs text-blue-700">Legend:</span>
-                          <button
-                            onClick={() => setBeaufortLegendOption(beaufortLegendOption === 'option3' ? 'none' : 'option3')}
-                            className={`px-2 py-1 text-xs rounded ${
-                              beaufortLegendOption === 'option3'
-                                ? 'bg-blue-600 text-white' 
-                                : 'bg-blue-100 text-blue-700 hover:bg-blue-200'
-                            }`}
-                          >
-                            {beaufortLegendOption === 'option3' ? 'Hide Legend' : 'Show Legend'}
-                          </button>
-                  </div>
-                    </div>
                   </div>
                     
-                    {/* NEW: Beaufort Gauge */}
+                    {/* Option 10: Wind Range Slider */}
                     <div className="mb-4 p-4 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg border border-blue-200">
                       <div className="text-center mb-3">
                         <div className="text-lg font-bold text-gray-800">{getBeaufortInfo(marine.windSpeedKts).description}</div>
                         <div className="text-sm text-gray-600">Force {getBeaufortInfo(marine.windSpeedKts).force} • {marine.windSpeedKts && !isNaN(marine.windSpeedKts) ? marine.windSpeedKts.toFixed(1) : 'N/A'} kts</div>
-                    </div>
-                      
-                      {/* Gauge Container */}
-                      <div className="relative h-8 bg-white rounded-full border-2 border-gray-200 overflow-hidden shadow-inner">
-                        {/* Gauge Segments */}
-                        {BEAUFORT_SCALE.map((scale, index) => {
-                          let leftPercent, widthPercent
-                          
-                          if (useLogarithmic) {
-                            // Logarithmic scaling: log(1 + wind_speed) for better distribution - continuous segments
-                            const logMin = Math.log(1 + scale.minKts)
-                            const logTotal = Math.log(1 + 64)
-                            
-                            leftPercent = (logMin / logTotal) * 100
-                            if (scale.maxKts === Infinity) {
-                              widthPercent = 100 - leftPercent
-                            } else {
-                              // Calculate width to reach the next segment's start point
-                              const nextSegment = BEAUFORT_SCALE[index + 1]
-                              const nextLogMin = nextSegment ? Math.log(1 + nextSegment.minKts) : Math.log(1 + 64)
-                              const endPoint = (nextLogMin / logTotal) * 100
-                              widthPercent = endPoint - leftPercent
-                            }
-                          } else {
-                            // Linear scaling - continuous segments with no gaps
-                            leftPercent = (scale.minKts / 64) * 100
-                            if (scale.maxKts === Infinity) {
-                              widthPercent = 100 - leftPercent
-                            } else {
-                              // Calculate width to reach the next segment's start point
-                              const nextSegment = BEAUFORT_SCALE[index + 1]
-                              const endPoint = nextSegment ? (nextSegment.minKts / 64) * 100 : 100
-                              widthPercent = endPoint - leftPercent
-                            }
-                          }
-                          
-                          const isActive = marine.windSpeedKts && !isNaN(marine.windSpeedKts) && 
-                            marine.windSpeedKts <= scale.maxKts && 
-                            (scale.force === 0 || marine.windSpeedKts > BEAUFORT_SCALE[scale.force - 1].maxKts)
-                          
-                          return (
-                            <div
-                              key={scale.force}
-                              className="absolute h-full transition-all duration-500"
-                              style={{
-                                left: `${leftPercent}%`,
-                                width: `${widthPercent}%`,
-                                backgroundColor: scale.color,
-                                borderRight: 'none', // Remove borders to eliminate gaps
-                                boxShadow: isActive ? `0 0 10px ${scale.color}80` : 'none',
-                                zIndex: isActive ? 10 : 1
-                              }}
-                            />
-                          )
-                        })}
-                        
-                        {/* Warning emoji at 25 knots */}
-                        <div
-                          className="absolute top-0 text-lg z-30"
-                          style={{
-                            left: `${Math.min(useLogarithmic 
-                              ? (Math.log(1 + 25) / Math.log(1 + 64)) * 100
-                              : (25 / 64) * 100, 100)}%`,
-                            transform: 'translateX(-50%) translateY(-25px)'
-                          }}
-                        >
-                          <FaWind className="w-4 h-4 text-red-500" />
-                  </div>
-                        
-                        {/* Current Wind Speed Indicator */}
-                        {marine.windSpeedKts && !isNaN(marine.windSpeedKts) && (() => {
-                          const windSpeed = Number(marine.windSpeedKts)
-                          
-                          // Find which Beaufort scale segment this wind speed falls into
-                          const currentScale = getBeaufortInfo(windSpeed)
-                          const scaleIndex = BEAUFORT_SCALE.findIndex(s => s.force === currentScale.force)
-                          
-                          let indicatorPosition
-                          if (useLogarithmic) {
-                            // Use the same logarithmic calculation as segments
-                            const logWind = Math.log(1 + windSpeed)
-                            const logTotal = Math.log(1 + 64)
-                            indicatorPosition = (logWind / logTotal) * 100
-                          } else {
-                            // Use the same linear calculation as segments - match the gauge segments exactly
-                            const scaleStart = currentScale.minKts
-                            const scaleEnd = currentScale.maxKts
-                            const scaleWidth = scaleEnd - scaleStart
-                            const positionInScale = (windSpeed - scaleStart) / scaleWidth
-                            
-                            // Calculate position within the gauge segment
-                            const segmentLeft = (currentScale.minKts / 64) * 100
-                            const segmentWidth = (scaleWidth / 64) * 100
-                            indicatorPosition = segmentLeft + (positionInScale * segmentWidth)
-                          }
-                          
-                          return (
-                            <div
-                              className="absolute top-0 w-1 h-full bg-white border border-gray-400 shadow-lg z-20"
-                              style={{
-                                left: `${Math.min(Math.max(indicatorPosition, 0), 100)}%`,
-                                transform: 'translateX(-50%)'
-                              }}
-                              title={`Wind Speed: ${marine.windSpeedKts} kts (Force ${currentScale.force}), Position: ${Math.min(Math.max(indicatorPosition, 0), 100)}%`}
-                            />
-                          )
-                        })()}
-                    </div>
-                      
-                      {/* Scale Labels */}
-                      <div className="flex justify-between text-xs text-gray-600 mt-2">
-                        {useLogarithmic ? (
-                          <>
-                            <span>0</span>
-                            <span>3</span>
-                            <span>7</span>
-                            <span>15</span>
-                            <span>30</span>
-                            <span>50</span>
-                            <span>60+</span>
-                          </>
-                        ) : (
-                          <>
-                            <span>0</span>
-                            <span>10</span>
-                            <span>20</span>
-                            <span>30</span>
-                            <span>40</span>
-                            <span>50</span>
-                            <span>60+</span>
-                          </>
-                        )}
-                  </div>
-                </div>
-                    
-                    {/* Beaufort Scale Legend - Option 3 Only */}
-                    {beaufortLegendOption === 'option3' && (
-                      <div className="mt-4 p-4 bg-white rounded-lg border border-blue-200">
-                        <h4 className="text-sm font-semibold text-blue-800 mb-3">Beaufort Scale Legend</h4>
-                        <div className="flex flex-wrap gap-1">
-                          {BEAUFORT_SCALE.map((scale) => (
-                            <div key={scale.force} className="flex items-center space-x-1 px-2 py-1 rounded text-xs" style={{ backgroundColor: scale.color }}>
-                              <div className="w-2 h-2 rounded-full border border-white" style={{ backgroundColor: scale.color }}></div>
-                              <span style={{ color: scale.textColor }}>{scale.force}</span>
-                              <span style={{ color: scale.textColor }}>{scale.description}</span>
-                            </div>
-                          ))}
-                        </div>
                       </div>
-                    )}
+                      
+                      {/* Wind Range Slider Visualization */}
+                      {marine.windSpeedKts && !isNaN(marine.windSpeedKts) && marine.windGustKts && !isNaN(marine.windGustKts) && (() => {
+                        const currentWind = Number(marine.windSpeedKts)
+                        const gustWind = Number(marine.windGustKts)
+                        
+                        // Adjust wind speed for display (round up < 1 kt to 1 kt to eliminate Force 0)
+                        const adjustedCurrentWind = currentWind < 1 ? 1 : currentWind
+                        const adjustedGustWind = gustWind < 1 ? 1 : gustWind
+                        
+                        // Calculate position with compressed high segments (9-12)
+                        // Segments 1-8 (0-48 kts) use 90% of space, segments 9-12 (48-64 kts) use 10%
+                        const calculatePosition = (speed: number) => {
+                          const compressedBreakpoint = 48 // kts
+                          const compressedSpace = 0.90 // 90% for 0-48 kts
+                          const highSpace = 0.10 // 10% for 48-64 kts
+                          
+                          if (speed <= compressedBreakpoint) {
+                            // Linear mapping for 0-48 kts into 0-90% of visual space
+                            return (speed / compressedBreakpoint) * compressedSpace * 100
+                          } else {
+                            // Compressed mapping for 48-64 kts into 90-100% of visual space
+                            const compressedRange = 64 - compressedBreakpoint // 16 kts
+                            const positionInHighRange = (speed - compressedBreakpoint) / compressedRange
+                            return (compressedSpace + (positionInHighRange * highSpace)) * 100
+                          }
+                        }
+                        
+                        // Calculate segment boundaries for header alignment
+                        // Filter out Force 0 (eliminated)
+                        const calculateSegmentBoundaries = () => {
+                          const compressedBreakpoint = 48
+                          const compressedSpace = 0.90
+                          const highSpace = 0.10
+                          
+                          const filteredScales = BEAUFORT_SCALE.filter(scale => scale.force !== 0)
+                          return filteredScales.map((scale, index) => {
+                            let left
+                            if (scale.minKts <= compressedBreakpoint) {
+                              left = (scale.minKts / compressedBreakpoint) * compressedSpace * 100
+                            } else {
+                              const compressedRange = 64 - compressedBreakpoint
+                              const positionInHighRange = (scale.minKts - compressedBreakpoint) / compressedRange
+                              left = (compressedSpace + (positionInHighRange * highSpace)) * 100
+                            }
+                            
+                            let width
+                            const nextScale = filteredScales[index + 1]
+                            if (nextScale) {
+                              let nextLeft
+                              if (nextScale.minKts <= compressedBreakpoint) {
+                                nextLeft = (nextScale.minKts / compressedBreakpoint) * compressedSpace * 100
+                              } else {
+                                const compressedRange = 64 - compressedBreakpoint
+                                const positionInHighRange = (nextScale.minKts - compressedBreakpoint) / compressedRange
+                                nextLeft = (compressedSpace + (positionInHighRange * highSpace)) * 100
+                              }
+                              width = nextLeft - left
+                            } else {
+                              // Last scale (Force 12) - ensure it extends to 100% and is visible
+                              // If left is at or near 100%, ensure minimum width for visibility
+                              if (left >= 100) {
+                                // Force 12 starts at 100%, make it visible by starting slightly earlier
+                                width = 2 // Minimum 2% width for visibility
+                                left = 98 // Adjust left position to accommodate width
+                              } else {
+                                width = 100 - left
+                              }
+                            }
+                            
+                            return { scale, left, width, center: left + (width / 2) }
+                          })
+                        }
+                        
+                        const segments = calculateSegmentBoundaries()
+                        const adjustedCurrentPos = calculatePosition(adjustedCurrentWind)
+                        const adjustedGustPos = calculatePosition(adjustedGustWind)
+                        
+                        return (
+                          <>
+                            {/* Option 2: Colored header */}
+                            <div>
+                                <div className="relative h-8 bg-gray-50 border-l border-r border-t border-b-0 border-gray-200">
+                                  {segments.map(({ scale, left, width }) => (
+                                    <div
+                                      key={`opt2-${scale.force}`}
+                                      className="absolute top-0 h-full flex flex-col items-center justify-center"
+                                      style={{
+                                        left: `${left}%`,
+                                        width: `${width}%`,
+                                        borderRight: '1px solid rgba(0,0,0,0.1)',
+                                        backgroundColor: scale.color,
+                                      }}
+                                      title={`Force ${scale.force}: ${scale.description}`}
+                                    >
+                                      <span style={{ color: scale.textColor }} className="text-[11px] font-bold">{scale.force}</span>
+                                      {width > 4 && (
+                                        <span style={{ color: scale.textColor }} className="text-[9px]">{scale.description.split(' ')[0]}</span>
+                                      )}
+                                    </div>
+                                  ))}
+                                </div>
+                                <div className="relative h-16 bg-gray-100 border-l border-r border-t-0 border-b border-gray-200 -mt-[1px]">
+                                  <div className="absolute inset-0">
+                                    {BEAUFORT_SCALE.filter(scale => scale.force !== 0).map((scale, index) => {
+                                      const compressedBreakpoint = 48
+                                      const compressedSpace = 0.90
+                                      const highSpace = 0.10
+                                      
+                                      let left
+                                      if (scale.minKts <= compressedBreakpoint) {
+                                        left = (scale.minKts / compressedBreakpoint) * compressedSpace * 100
+                                      } else {
+                                        const compressedRange = 64 - compressedBreakpoint
+                                        const positionInHighRange = (scale.minKts - compressedBreakpoint) / compressedRange
+                                        left = (compressedSpace + (positionInHighRange * highSpace)) * 100
+                                      }
+                                      
+                                      let width
+                                      const filteredScales = BEAUFORT_SCALE.filter(s => s.force !== 0)
+                                      const nextScale = filteredScales[index + 1]
+                                      if (nextScale) {
+                                        let nextLeft
+                                        if (nextScale.minKts <= compressedBreakpoint) {
+                                          nextLeft = (nextScale.minKts / compressedBreakpoint) * compressedSpace * 100
+                                        } else {
+                                          const compressedRange = 64 - compressedBreakpoint
+                                          const positionInHighRange = (nextScale.minKts - compressedBreakpoint) / compressedRange
+                                          nextLeft = (compressedSpace + (positionInHighRange * highSpace)) * 100
+                                        }
+                                        width = nextLeft - left
+                                      } else {
+                                        // Last scale (Force 12) - ensure it extends to 100% and is visible
+                                        // If left is at or near 100%, ensure minimum width for visibility
+                                        if (left >= 100) {
+                                          // Force 12 starts at 100%, make it visible by starting slightly earlier
+                                          width = 2 // Minimum 2% width for visibility
+                                          left = 98 // Adjust left position to accommodate width
+                                        } else {
+                                          width = 100 - left
+                                        }
+                                      }
+                                      
+                                      return (
+                                        <div
+                                          key={`opt2-seg-${scale.force}`}
+                                          className="absolute h-full"
+                                          style={{
+                                            left: `${left}%`,
+                                            width: `${width}%`,
+                                            backgroundColor: scale.color,
+                                          }}
+                                        />
+                                      )
+                                    })}
+                                    
+                                    <div
+                                      className="absolute top-1/2 left-0 h-2 bg-blue-500 opacity-60 rounded transform -translate-y-1/2"
+                                      style={{
+                                        left: `${Math.min(adjustedCurrentPos, 100)}%`,
+                                        width: `${Math.max(adjustedGustPos - adjustedCurrentPos, 2)}%`,
+                                      }}
+                                    />
+                                    
+                                    <div
+                                      className="absolute top-1/2 transform -translate-y-1/2 -translate-x-1/2 w-6 h-6 bg-blue-600 border-2 border-white rounded-full shadow-lg z-20"
+                                      style={{ left: `${Math.min(adjustedCurrentPos, 100)}%` }}
+                                      title={`Current Wind: ${currentWind.toFixed(1)} kts`}
+                                    />
+                                    
+                                    <div
+                                      className="absolute top-1/2 transform -translate-y-1/2 -translate-x-1/2 w-6 h-6 bg-red-600 border-2 border-white rounded-full shadow-lg z-20"
+                                      style={{ left: `${Math.min(adjustedGustPos, 100)}%` }}
+                                      title={`Wind Gust: ${gustWind.toFixed(1)} kts`}
+                                    />
+                                  </div>
+                                </div>
+                              </div>
+                            
+                            {/* Scale Labels - shown once at the bottom */}
+                            <div className="flex justify-between text-xs text-gray-600 mt-4">
+                              <span>0</span>
+                              <span>10</span>
+                              <span>20</span>
+                              <span>30</span>
+                              <span>40</span>
+                              <span>48</span>
+                              <span className="text-red-600 font-semibold">64+</span>
+                            </div>
+                            
+                            {/* Wind values */}
+                            <div className="mt-2 flex justify-between text-xs text-gray-600">
+                              <span>Current: {currentWind.toFixed(1)} kts</span>
+                              <span>Gust: {gustWind.toFixed(1)} kts</span>
+                            </div>
+                          </>
+                        )
+                      })()}
+                    </div>
                     
                     {/* ORIGINAL: Button List (kept for rollback) */}
                     <div className="space-y-1" style={{ display: 'none' }}>
@@ -1592,7 +1673,7 @@ function App() {
                                   }}
                                   title={`Temperature: ${marine.temperatureC}°C`}
                                 />
-                              )}
+              )}
             </div>
 
                             {/* Temperature labels below */}
@@ -1718,8 +1799,8 @@ function App() {
               <div className="p-4 border-b border-gray-200">
                 <div className="flex items-center justify-between">
                   <div>
-                    <h2 className="text-lg font-semibold text-gray-900">Bay Area Map</h2>
-                    <p className="text-sm text-gray-600">Click to add waypoints, select harbor to center map</p>
+                <h2 className="text-lg font-semibold text-gray-900">Bay Area Map</h2>
+                <p className="text-sm text-gray-600">Click to add waypoints, select harbor to center map</p>
                   </div>
                   <button
                     onClick={() => setMapStyle(mapStyle === 'streets' ? 'satellite' : 'streets')}
@@ -1749,15 +1830,15 @@ function App() {
                         <div className="flex items-center justify-between mb-2">
                           <span className="text-sm font-medium text-gray-700">Waypoints</span>
                           <span className="text-lg font-bold text-blue-600">{waypoints.length}</span>
-                        </div>
+            </div>
                         {etaSummary && (
                           <div className="flex items-center justify-between">
                             <span className="text-sm font-medium text-gray-700">Distance</span>
                             <span className="text-lg font-bold text-green-600">{etaSummary.distanceNm.toFixed(1)} nm</span>
-                          </div>
+          </div>
                         )}
-                      </div>
-                      
+        </div>
+
                       {etaSummary && (
                         <div className="bg-white rounded-lg p-4 shadow-sm">
                           <div className="text-sm font-medium text-gray-700 mb-2">Sailing ETA</div>
@@ -1767,15 +1848,15 @@ function App() {
                               <div className="flex justify-between">
                                 <span>Harbor exit:</span>
                                 <span>{etaSummary.breakdown.harborExit.toFixed(1)}h</span>
-                              </div>
+                  </div>
                               <div className="flex justify-between">
                                 <span>Sailing:</span>
                                 <span>{etaSummary.breakdown.sailingTime.toFixed(1)}h</span>
-                              </div>
+                    </div>
                               <div className="flex justify-between">
                                 <span>Wind:</span>
                                 <span>{etaSummary.breakdown.windSpeed.toFixed(1)} kts {getWindDirection(etaSummary.breakdown.windDirection)}</span>
-                              </div>
+                  </div>
                               <div className="flex justify-between" title="Sailing efficiency based on wind angle: 60% (close hauled), 80% (beam reach), 90% (broad reach)">
                                 <span>Efficiency:</span>
                                 <span>{(etaSummary.breakdown.efficiency * 100).toFixed(0)}%</span>
@@ -1791,19 +1872,19 @@ function App() {
                         </div>
                       )}
                     </div>
-                  </div>
+                </div>
 
                   {/* Waypoints List */}
                   <div className="lg:col-span-2">
                     <div className="flex items-center justify-between mb-4">
                       <h3 className="text-lg font-semibold text-gray-900">Waypoints</h3>
                       {waypoints.length > 0 && (
-                        <button
+                    <button
                           onClick={() => setWaypoints([])}
                           className="bg-red-600 text-white py-2 px-4 rounded-md hover:bg-red-700 text-sm transition-colors"
                         >
                           Clear All
-                        </button>
+                    </button>
                       )}
                     </div>
                     
@@ -1829,28 +1910,28 @@ function App() {
                                 </div>
                                 <span className="font-medium text-gray-900">Waypoint {i + 1}</span>
                               </div>
-                              <button
-                                onClick={() => {
+                    <button
+                      onClick={() => {
                                   const newWaypoints = waypoints.filter((_, index) => index !== i)
                                   setWaypoints(newWaypoints)
                                 }}
                                 className="text-red-500 hover:text-red-700 text-sm"
                               >
                                 Remove
-                              </button>
-                            </div>
+                    </button>
+                  </div>
                             <div className="text-xs text-gray-500 font-mono">
                               {lat.toFixed(4)}°N, {lng.toFixed(4)}°W
-                            </div>
-                          </div>
+                </div>
+              </div>
                         ))}
                       </div>
                     )}
                   </div>
                 </div>
-              </div>
             </div>
           </div>
+        </div>
         </div>
       </section>
 
@@ -1872,7 +1953,7 @@ function App() {
             </div>
             <div className="text-right">
               <p className="text-gray-600 mb-2">
-                Built with <span className="text-blue-600">💙</span> for Bay Area sailors
+                Built with <span className="text-red-600">❤️</span> for Bay Area sailors
               </p>
               <div className="text-xs text-gray-500 space-y-1">
                 <div>React + TypeScript • MapLibre GL • NOAA Data</div>
@@ -1891,6 +1972,15 @@ function App() {
         </div>
       </footer>
 
+      {/* Beaufort Header Options Modal */}
+      {showBeaufortHeaderOptions && (
+        <BeaufortHeaderOptions
+          onSelect={() => {
+            setShowBeaufortHeaderOptions(false)
+          }}
+          onClose={() => setShowBeaufortHeaderOptions(false)}
+        />
+      )}
     </div>
   )
 }

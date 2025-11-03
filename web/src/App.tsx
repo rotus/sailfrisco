@@ -130,8 +130,10 @@ function App() {
   const [showBeaufortHeaderOptions, setShowBeaufortHeaderOptions] = useState(false)
   const [showHarborInstruction, setShowHarborInstruction] = useState(true)
   const [showBoatInstruction, setShowBoatInstruction] = useState(false)
+  const [showDarkModeInstruction, setShowDarkModeInstruction] = useState(false)
   const [isHarborInstructionPopping, setIsHarborInstructionPopping] = useState(false)
   const [isBoatInstructionPopping, setIsBoatInstructionPopping] = useState(false)
+  const [isDarkModeInstructionPopping, setIsDarkModeInstructionPopping] = useState(false)
 
   // Apply dark mode styles - simple color inversion
   useEffect(() => {
@@ -142,36 +144,62 @@ function App() {
     }
   }, [isDarkMode])
 
-  // Show harbor instruction on initial load, then hide after 5 seconds
-  // Show boat instruction at 4 seconds, both disappear at same time (5 seconds)
+  // Show harbor instruction on initial load, then hide after 7 seconds
+  // Show boat instruction at 3 seconds, both disappear at 7 seconds
   useEffect(() => {
     if (showHarborInstruction) {
-      // Show boat instruction at 4 seconds
+      // Show boat instruction at 3 seconds
       const boatTimer = setTimeout(() => {
         setShowBoatInstruction(true)
-      }, 4000)
+      }, 3000)
       
-      // Start pop animation for both at 4.5 seconds
+      // Start pop animation for harbor and boat at 6 seconds
       const popTimer = setTimeout(() => {
         setIsHarborInstructionPopping(true)
         setIsBoatInstructionPopping(true)
-      }, 4500)
+      }, 6000)
       
-      // Hide both instructions after 5 seconds (same time)
-      const hideTimer = setTimeout(() => {
+      // Hide harbor and boat instructions after 7 seconds
+      const hideHarborBoatTimer = setTimeout(() => {
         setShowHarborInstruction(false)
         setShowBoatInstruction(false)
         setIsHarborInstructionPopping(false)
         setIsBoatInstructionPopping(false)
-      }, 5000)
+      }, 7000)
       
       return () => {
         clearTimeout(boatTimer)
         clearTimeout(popTimer)
-        clearTimeout(hideTimer)
+        clearTimeout(hideHarborBoatTimer)
       }
     }
   }, [showHarborInstruction])
+
+  // Show dark/light toggle instruction at 8 seconds, disappear at 12 seconds
+  // Separate effect to avoid cleanup conflicts
+  useEffect(() => {
+    // Show dark/light toggle instruction at 8 seconds
+    const darkModeTimer = setTimeout(() => {
+      setShowDarkModeInstruction(true)
+    }, 8000)
+    
+    // Start pop animation for dark mode instruction at 11.5 seconds
+    const darkModePopTimer = setTimeout(() => {
+      setIsDarkModeInstructionPopping(true)
+    }, 11500)
+    
+    // Hide dark mode instruction after 12 seconds
+    const hideDarkModeTimer = setTimeout(() => {
+      setShowDarkModeInstruction(false)
+      setIsDarkModeInstructionPopping(false)
+    }, 12000)
+    
+    return () => {
+      clearTimeout(darkModeTimer)
+      clearTimeout(darkModePopTimer)
+      clearTimeout(hideDarkModeTimer)
+    }
+  }, []) // Run once on mount
 
   const mapRef = useRef<Map | null>(null)
   const mapContainerRef = useRef<HTMLDivElement | null>(null)
@@ -617,7 +645,7 @@ function App() {
                   <div className="relative bg-yellow-100 border-2 border-yellow-400 rounded-lg shadow-2xl px-4 py-3 max-w-xs">
                     <div className="absolute -top-2 right-6 w-4 h-4 bg-yellow-100 border-l-2 border-t-2 border-yellow-400 transform rotate-45"></div>
                     <p className="text-sm text-gray-800 font-handwritten">
-                      👋 Start here! Select your harbor to get started
+                      👋 Ahoy Sailor, Select your harbor to get started
                     </p>
                   </div>
                 </div>
@@ -665,12 +693,26 @@ function App() {
               </div> */}
 
               {/* Dark Mode Toggle */}
-        <button
-          onClick={() => setIsDarkMode(!isDarkMode)}
-          className="bg-slate-600 text-white p-2 rounded-md border border-slate-600 hover:bg-slate-600 hover:border-blue-400 transition-all duration-200"
-        >
-          {isDarkMode ? <FaSun className="w-4 h-4" /> : <FaMoon className="w-4 h-4" />}
-        </button>
+            <div className="relative">
+              <button
+                onClick={() => setIsDarkMode(!isDarkMode)}
+                className="bg-slate-600 text-white p-2 rounded-md border border-slate-600 hover:bg-slate-600 hover:border-blue-400 transition-all duration-200"
+              >
+                {isDarkMode ? <FaSun className="w-4 h-4" /> : <FaMoon className="w-4 h-4" />}
+              </button>
+              
+              {/* Dark Mode Instruction Tooltip */}
+              {showDarkModeInstruction && (
+                <div className={`absolute top-full right-0 mt-2 z-50 ${isDarkModeInstructionPopping ? 'animate-balloon-pop' : 'animate-pop-in'}`}>
+                  <div className="relative bg-purple-100 border-2 border-purple-400 rounded-lg shadow-2xl px-4 py-3 max-w-xs">
+                    <div className="absolute -top-2 right-6 w-4 h-4 bg-purple-100 border-l-2 border-t-2 border-purple-400 transform rotate-45"></div>
+                    <p className="text-sm text-gray-800 font-handwritten">
+                      🌙 Toggle dark mode for night sailing!
+                    </p>
+                  </div>
+                </div>
+              )}
+            </div>
 
 
               {/* Refresh Button */}

@@ -196,10 +196,10 @@ function App() {
       if (mapStyle === 'satellite') {
         styleUrl = 'https://api.maptiler.com/maps/satellite/style.json?key=get_your_own_OpIi9ZULNHzrESv6T2vL'
       } else {
-        // Use dark or light streets based on dark mode
+        // Use free dark or light streets based on dark mode (no API key required)
         styleUrl = isDarkMode 
-          ? 'https://api.maptiler.com/maps/dark/style.json?key=get_your_own_OpIi9ZULNHzrESv6T2vL'
-        : 'https://api.maptiler.com/maps/streets/style.json?key=get_your_own_OpIi9ZULNHzrESv6T2vL'
+          ? 'https://tiles.stadiamaps.com/styles/alidade_smooth_dark.json' // Free dark style from Stadia Maps
+          : 'https://demotiles.maplibre.org/style.json' // Free light style from MapLibre
       }
       
     const map = new maplibregl.Map({
@@ -293,7 +293,10 @@ function App() {
 
     map.on('error', (e) => {
         console.error('Map error:', e)
-        setError('Failed to load map. Please refresh the page.')
+        // Only show error for non-style loading errors (style errors are handled separately)
+        if (e.error && !e.error.message?.includes('style')) {
+          setError('Failed to load map. Please refresh the page.')
+        }
       })
     } catch (error) {
       console.error('Map initialization error:', error)
@@ -440,22 +443,51 @@ function App() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [harbor])
 
-  // Update map style when changed (NO DARK MODE - map stays the same)
+  // Update map style when changed (includes dark mode support)
   useEffect(() => {
     if (!mapRef.current) return
     
     let styleUrl
     if (mapStyle === 'satellite') {
+      // Use free MapTiler satellite style (no API key required for basic usage)
       styleUrl = 'https://api.maptiler.com/maps/satellite/style.json?key=get_your_own_OpIi9ZULNHzrESv6T2vL'
     } else {
-      // Always use light streets - no dark mode for map
-      styleUrl = 'https://api.maptiler.com/maps/streets/style.json?key=get_your_own_OpIi9ZULNHzrESv6T2vL'
+      // Use free dark or light streets based on dark mode (no API key required)
+      styleUrl = isDarkMode 
+        ? 'https://tiles.stadiamaps.com/styles/alidade_smooth_dark.json' // Free dark style from Stadia Maps
+        : 'https://demotiles.maplibre.org/style.json' // Free light style from MapLibre
     }
     
-    // Simple style change without dark mode complications
+    // Style change with dark mode support
     const timeoutId = setTimeout(() => {
       if (mapRef.current && mapRef.current.isStyleLoaded && mapRef.current.isStyleLoaded()) {
+        try {
+          // Handle style loading errors
+          const errorHandler = (e: any) => {
+            console.error('Style loading error:', e)
+            // Fallback to light style if dark style fails
+            if (isDarkMode && styleUrl.includes('dark')) {
+              console.log('Dark style failed, falling back to light style')
+              mapRef.current?.off('error', errorHandler)
+              mapRef.current?.setStyle('https://demotiles.maplibre.org/style.json')
+              setIsDarkMode(false) // Revert dark mode toggle if style fails
+            }
+            mapRef.current?.off('error', errorHandler)
+          }
+          
+          mapRef.current.once('error', errorHandler)
           mapRef.current.setStyle(styleUrl)
+        } catch (error) {
+          console.error('Failed to load map style:', error)
+          // Fallback to light style if dark style fails
+          if (isDarkMode && styleUrl.includes('dark')) {
+            console.log('Falling back to light style')
+            mapRef.current?.setStyle('https://demotiles.maplibre.org/style.json')
+            setIsDarkMode(false) // Revert dark mode toggle if style fails
+            return
+          }
+          return
+        }
         
         // Redraw route line after style change
         mapRef.current.once('styledata', () => {
@@ -521,7 +553,7 @@ function App() {
     }, 100)
     
     return () => clearTimeout(timeoutId)
-  }, [mapStyle, waypoints, harbor]) // Added waypoints and harbor dependencies
+  }, [mapStyle, waypoints, harbor, isDarkMode]) // Added waypoints, harbor, and isDarkMode dependencies
 
 
 

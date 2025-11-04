@@ -25,7 +25,13 @@ router.get('/marine', async (req: Request, res: Response) => {
   const { lat, lon } = parse.data;
   const key = buildKey('marine', { lat, lon });
   const cached = cache.get(key);
-  if (cached) return res.json({ cached: true, data: cached });
+  if (cached) {
+    // Ensure cached data has min/max temp fields (for backward compatibility)
+    const cachedData = cached as any;
+    if (cachedData.minTempC === undefined) cachedData.minTempC = null;
+    if (cachedData.maxTempC === undefined) cachedData.maxTempC = null;
+    return res.json({ cached: true, data: cachedData });
+  }
 
   try {
     const url = 'https://api.open-meteo.com/v1/forecast';
@@ -49,6 +55,25 @@ router.get('/marine', async (req: Request, res: Response) => {
     const visibilityKm = data.hourly?.visibility?.[i] ?? null;
     const weatherCode = data.hourly?.weather_code?.[i] ?? null;
     
+    // Calculate min/max temperatures from next 24 hours (indices 0-23)
+    let minTempC = null;
+    let maxTempC = null;
+    try {
+      const hourlyTemps = data.hourly?.temperature_2m;
+      if (Array.isArray(hourlyTemps) && hourlyTemps.length > 0) {
+        const next24Hours = hourlyTemps
+          .slice(0, 24)
+          .filter((temp: any) => typeof temp === 'number' && !isNaN(temp) && temp !== null);
+        if (next24Hours.length > 0) {
+          minTempC = Math.min(...next24Hours);
+          maxTempC = Math.max(...next24Hours);
+        }
+      }
+    } catch (e) {
+      // If min/max calculation fails, continue without them
+      console.warn('Failed to calculate min/max temperatures:', e);
+    }
+    
     const normalized = {
       lat,
       lon,
@@ -57,6 +82,8 @@ router.get('/marine', async (req: Request, res: Response) => {
       windGustKts: windGustKmh ? windGustKmh * 0.539957 : null,
       windDirectionDeg: data.hourly?.wind_direction_10m?.[i] ?? null,
       temperatureC: temperatureC,
+      minTempC: minTempC,
+      maxTempC: maxTempC,
       humidity: humidity,
       pressureHpa: pressureHpa,
       visibilityKm: visibilityKm,

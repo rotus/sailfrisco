@@ -88,6 +88,8 @@ type MarineData = {
   windDirectionDeg: number | null
   waveHeightM: number | null
   temperatureC: number | null
+  minTempC: number | null
+  maxTempC: number | null
   humidity: number | null
   pressureHpa: number | null
   visibilityKm: number | null
@@ -442,6 +444,581 @@ function App() {
       breakdown: sailingTime.breakdown
     }
   }, [waypoints, boat, marine, harbor])
+
+  // Helper function to convert temperature
+  const convertTemp = (tempC: number | null, unit: 'celsius' | 'fahrenheit'): string => {
+    if (tempC === null || isNaN(tempC)) return 'N/A'
+    if (unit === 'celsius') return `${tempC.toFixed(1)}°C`
+    return `${((tempC * 9/5) + 32).toFixed(1)}°F`
+  }
+
+  // Helper function to get color for temperature
+  const getTempColor = (tempC: number, minC: number, maxC: number): string => {
+    const range = maxC - minC
+    const normalized = range > 0 ? (tempC - minC) / range : 0.5
+    
+    if (normalized < 0.25) return 'rgb(59, 130, 246)' // blue
+    if (normalized < 0.5) return 'rgb(34, 197, 94)' // green
+    if (normalized < 0.75) return 'rgb(251, 191, 36)' // yellow
+    return 'rgb(239, 68, 68)' // red
+  }
+
+  // Render temperature visualization based on style
+  const renderTempVisualization = (style: number, marine: MarineData | null, unit: 'celsius' | 'fahrenheit', isPreview: boolean) => {
+    if (!marine || marine.temperatureC === null) {
+      return <div className="text-center text-gray-500 text-sm">No temperature data</div>
+    }
+
+    const current = marine.temperatureC
+    const minTemp = marine.minTempC ?? current - 5
+    const maxTemp = marine.maxTempC ?? current + 5
+    const tempRange = maxTemp - minTemp
+    const scaleMin = minTemp - 5
+    const scaleMax = maxTemp + 5
+    const scaleRange = scaleMax - scaleMin
+
+    // Calculate positions (0-100%)
+    const currentPos = ((current - scaleMin) / scaleRange) * 100
+    const minPos = ((minTemp - scaleMin) / scaleRange) * 100
+    const maxPos = ((maxTemp - scaleMin) / scaleRange) * 100
+
+    switch (style) {
+      case 1: // Classic Horizontal Bar
+        return (
+          <div className="space-y-2">
+            <div className="relative h-8 bg-gradient-to-r from-blue-500 via-green-400 via-yellow-400 via-orange-400 to-red-500 rounded-full overflow-hidden">
+              <div 
+                className="absolute top-0 w-1 h-full bg-blue-600 border border-blue-800 shadow-lg z-20"
+                style={{ left: `${minPos}%`, transform: 'translateX(-50%)' }}
+                title={`Low: ${convertTemp(minTemp, unit)}`}
+              />
+              <div 
+                className="absolute top-0 w-1 h-full bg-red-600 border border-red-800 shadow-lg z-20"
+                style={{ left: `${maxPos}%`, transform: 'translateX(-50%)' }}
+                title={`High: ${convertTemp(maxTemp, unit)}`}
+              />
+              <div 
+                className="absolute top-0 w-2 h-full bg-white border-2 border-gray-800 shadow-lg z-30"
+                style={{ left: `${currentPos}%`, transform: 'translateX(-50%)' }}
+                title={`Current: ${convertTemp(current, unit)}`}
+              />
+            </div>
+            {!isPreview && (
+              <div className="flex justify-between text-xs text-gray-600">
+                <span>{convertTemp(scaleMin, unit)}</span>
+                <span>{convertTemp((scaleMin + scaleMax) / 2, unit)}</span>
+                <span>{convertTemp(scaleMax, unit)}</span>
+              </div>
+            )}
+          </div>
+        )
+
+      case 2: // Thermometer Style
+        return (
+          <div className="flex justify-center items-center space-x-4">
+            <div className="relative h-48 w-12 bg-gradient-to-b from-red-500 via-yellow-400 via-green-400 to-blue-500 rounded-full border-4 border-gray-300">
+              <div 
+                className="absolute left-0 right-0 h-1 bg-blue-700 z-20"
+                style={{ bottom: `${minPos}%` }}
+                title={`Low: ${convertTemp(minTemp, unit)}`}
+              />
+              <div 
+                className="absolute left-0 right-0 h-1 bg-red-700 z-20"
+                style={{ bottom: `${maxPos}%` }}
+                title={`High: ${convertTemp(maxTemp, unit)}`}
+              />
+              <div 
+                className="absolute left-1/2 w-4 h-4 bg-white border-2 border-gray-800 rounded-full shadow-lg z-30"
+                style={{ bottom: `${currentPos}%`, transform: 'translate(-50%, 50%)' }}
+                title={`Current: ${convertTemp(current, unit)}`}
+              />
+            </div>
+            {!isPreview && (
+              <div className="flex flex-col justify-between h-48 text-xs text-gray-600">
+                <span>{convertTemp(scaleMax, unit)}</span>
+                <span>{convertTemp((scaleMin + scaleMax) / 2, unit)}</span>
+                <span>{convertTemp(scaleMin, unit)}</span>
+              </div>
+            )}
+          </div>
+        )
+
+      case 3: // Segmented Bar
+        return (
+          <div className="space-y-2">
+            <div className="flex h-10 gap-0.5">
+              {Array.from({ length: 20 }).map((_, i) => {
+                const segmentPos = (i / 20) * 100
+                const isInRange = segmentPos >= minPos && segmentPos <= maxPos
+                const isCurrent = Math.abs(segmentPos - currentPos) < 5
+                const color = i < 5 ? 'bg-blue-500' : i < 10 ? 'bg-green-400' : i < 15 ? 'bg-yellow-400' : 'bg-red-500'
+                return (
+                  <div
+                    key={i}
+                    className={`flex-1 ${color} ${isCurrent ? 'ring-2 ring-white ring-offset-2 ring-offset-gray-800 z-10' : ''} ${isInRange ? 'opacity-100' : 'opacity-30'}`}
+                    title={`${convertTemp(scaleMin + (i / 20) * scaleRange, unit)}`}
+                  />
+                )
+              })}
+            </div>
+            {!isPreview && (
+              <div className="flex justify-around text-xs text-gray-600">
+                <span>Low: {convertTemp(minTemp, unit)}</span>
+                <span>Current: {convertTemp(current, unit)}</span>
+                <span>High: {convertTemp(maxTemp, unit)}</span>
+              </div>
+            )}
+          </div>
+        )
+
+      case 4: // Circular Gauge
+        return (
+          <div className="flex justify-center">
+            <div className="relative w-40 h-40">
+              <svg viewBox="0 0 100 100" className="transform -rotate-90">
+                <circle cx="50" cy="50" r="45" fill="none" stroke="#ddd" strokeWidth="8" />
+                <circle 
+                  cx="50" cy="50" r="45" 
+                  fill="none" 
+                  stroke="url(#tempGradient)" 
+                  strokeWidth="8"
+                  strokeDasharray={`${(currentPos / 100) * 283} 283`}
+                  strokeLinecap="round"
+                />
+                <defs>
+                  <linearGradient id="tempGradient" x1="0%" y1="0%" x2="100%" y2="0%">
+                    <stop offset="0%" stopColor="rgb(59, 130, 246)" />
+                    <stop offset="50%" stopColor="rgb(251, 191, 36)" />
+                    <stop offset="100%" stopColor="rgb(239, 68, 68)" />
+                  </linearGradient>
+                </defs>
+              </svg>
+              <div className="absolute inset-0 flex items-center justify-center">
+                <div className="text-center">
+                  <div className="text-2xl font-bold">{convertTemp(current, unit)}</div>
+                  {!isPreview && (
+                    <>
+                      <div className="text-xs text-gray-600">{convertTemp(minTemp, unit)} - {convertTemp(maxTemp, unit)}</div>
+                    </>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+        )
+
+      case 5: // Dual Bars (Min/Max)
+        return (
+          <div className="space-y-3">
+            <div className="space-y-1">
+              <div className="text-xs text-gray-600">Low</div>
+              <div className="relative h-6 bg-gray-200 rounded">
+                <div 
+                  className="absolute h-full bg-gradient-to-r from-blue-600 to-blue-400 rounded"
+                  style={{ width: `${minPos}%` }}
+                  title={`Low: ${convertTemp(minTemp, unit)}`}
+                />
+                <div className="absolute inset-0 flex items-center justify-end pr-2 text-xs font-semibold text-gray-700">
+                  {convertTemp(minTemp, unit)}
+                </div>
+              </div>
+            </div>
+            <div className="space-y-1">
+              <div className="text-xs text-gray-600">Current</div>
+              <div className="relative h-6 bg-gray-200 rounded">
+                <div 
+                  className="absolute h-full bg-gradient-to-r from-green-600 to-green-400 rounded"
+                  style={{ width: `${currentPos}%` }}
+                  title={`Current: ${convertTemp(current, unit)}`}
+                />
+                <div className="absolute inset-0 flex items-center justify-end pr-2 text-xs font-semibold text-gray-700">
+                  {convertTemp(current, unit)}
+                </div>
+              </div>
+            </div>
+            <div className="space-y-1">
+              <div className="text-xs text-gray-600">High</div>
+              <div className="relative h-6 bg-gray-200 rounded">
+                <div 
+                  className="absolute h-full bg-gradient-to-r from-red-600 to-red-400 rounded"
+                  style={{ width: `${maxPos}%` }}
+                  title={`High: ${convertTemp(maxTemp, unit)}`}
+                />
+                <div className="absolute inset-0 flex items-center justify-end pr-2 text-xs font-semibold text-gray-700">
+                  {convertTemp(maxTemp, unit)}
+                </div>
+              </div>
+            </div>
+          </div>
+        )
+
+      case 6: // Bubble Style
+        return (
+          <div className="relative h-24 flex items-end justify-around border-b-2 border-gray-300">
+            <div className="flex flex-col items-center" title={`Low: ${convertTemp(minTemp, unit)}`}>
+              <div 
+                className="w-16 h-16 bg-blue-500 rounded-full flex items-center justify-center text-white font-bold shadow-lg"
+                style={{ transform: `scale(${0.6 + (minPos / 100) * 0.4})` }}
+              >
+                {convertTemp(minTemp, unit)}
+              </div>
+              <div className="text-xs text-gray-600 mt-1">Low</div>
+            </div>
+            <div className="flex flex-col items-center" title={`Current: ${convertTemp(current, unit)}`}>
+              <div 
+                className="w-16 h-16 bg-green-500 rounded-full flex items-center justify-center text-white font-bold shadow-lg ring-2 ring-offset-2 ring-gray-800"
+                style={{ transform: `scale(${0.6 + (currentPos / 100) * 0.4})` }}
+              >
+                {convertTemp(current, unit)}
+              </div>
+              <div className="text-xs text-gray-600 mt-1">Now</div>
+            </div>
+            <div className="flex flex-col items-center" title={`High: ${convertTemp(maxTemp, unit)}`}>
+              <div 
+                className="w-16 h-16 bg-red-500 rounded-full flex items-center justify-center text-white font-bold shadow-lg"
+                style={{ transform: `scale(${0.6 + (maxPos / 100) * 0.4})` }}
+              >
+                {convertTemp(maxTemp, unit)}
+              </div>
+              <div className="text-xs text-gray-600 mt-1">High</div>
+            </div>
+          </div>
+        )
+
+      case 7: // Wave/Curve Style
+        return (
+          <div className="space-y-2">
+            <div className="relative h-20 bg-gradient-to-b from-blue-50 to-red-50 rounded-lg overflow-hidden">
+              <svg className="absolute inset-0 w-full h-full" viewBox="0 0 100 100" preserveAspectRatio="none">
+                <defs>
+                  <linearGradient id="waveGradient" x1="0%" y1="0%" x2="100%" y2="0%">
+                    <stop offset="0%" stopColor="rgba(59, 130, 246, 0.5)" />
+                    <stop offset="50%" stopColor="rgba(251, 191, 36, 0.5)" />
+                    <stop offset="100%" stopColor="rgba(239, 68, 68, 0.5)" />
+                  </linearGradient>
+                </defs>
+                <path
+                  d={`M 0 100 L 0 ${100 - minPos} Q 25 ${100 - currentPos} 50 ${100 - currentPos} T 100 ${100 - maxPos} L 100 100 Z`}
+                  fill="url(#waveGradient)"
+                />
+              </svg>
+              <div 
+                className="absolute w-2 h-2 bg-blue-600 rounded-full border-2 border-white z-10"
+                style={{ left: '5%', bottom: `${minPos}%` }}
+                title={`Low: ${convertTemp(minTemp, unit)}`}
+              />
+              <div 
+                className="absolute w-3 h-3 bg-white rounded-full border-2 border-gray-800 z-10"
+                style={{ left: '50%', bottom: `${currentPos}%`, transform: 'translateX(-50%)' }}
+                title={`Current: ${convertTemp(current, unit)}`}
+              />
+              <div 
+                className="absolute w-2 h-2 bg-red-600 rounded-full border-2 border-white z-10"
+                style={{ right: '5%', bottom: `${maxPos}%` }}
+                title={`High: ${convertTemp(maxTemp, unit)}`}
+              />
+            </div>
+            {!isPreview && (
+              <div className="flex justify-between text-xs text-gray-600">
+                <span>L: {convertTemp(minTemp, unit)}</span>
+                <span>C: {convertTemp(current, unit)}</span>
+                <span>H: {convertTemp(maxTemp, unit)}</span>
+              </div>
+            )}
+          </div>
+        )
+
+      case 8: // Stacked Cards
+        return (
+          <div className="flex justify-around gap-2">
+            <div className="flex-1 bg-gradient-to-br from-blue-400 to-blue-600 rounded-lg p-3 text-white shadow-lg" title={`Low: ${convertTemp(minTemp, unit)}`}>
+              <div className="text-xs opacity-80">Low</div>
+              <div className="text-lg font-bold">{convertTemp(minTemp, unit)}</div>
+            </div>
+            <div className="flex-1 bg-gradient-to-br from-green-400 to-green-600 rounded-lg p-3 text-white shadow-lg ring-2 ring-offset-2 ring-gray-400" title={`Current: ${convertTemp(current, unit)}`}>
+              <div className="text-xs opacity-80">Current</div>
+              <div className="text-lg font-bold">{convertTemp(current, unit)}</div>
+            </div>
+            <div className="flex-1 bg-gradient-to-br from-red-400 to-red-600 rounded-lg p-3 text-white shadow-lg" title={`High: ${convertTemp(maxTemp, unit)}`}>
+              <div className="text-xs opacity-80">High</div>
+              <div className="text-lg font-bold">{convertTemp(maxTemp, unit)}</div>
+            </div>
+          </div>
+        )
+
+      case 9: // Gradient Dial
+        return (
+          <div className="space-y-2">
+            <div className="relative h-16 bg-gradient-to-r from-blue-500 via-green-400 via-yellow-400 to-red-500 rounded-lg">
+              <div 
+                className="absolute bottom-0 w-0.5 h-8 bg-blue-700"
+                style={{ left: `${minPos}%`, transform: 'translateX(-50%)' }}
+                title={`Low: ${convertTemp(minTemp, unit)}`}
+              />
+              <div 
+                className="absolute top-0 bottom-0 w-1 bg-white border-2 border-gray-800 shadow-xl"
+                style={{ left: `${currentPos}%`, transform: 'translateX(-50%)' }}
+                title={`Current: ${convertTemp(current, unit)}`}
+              >
+                <div className="absolute -top-8 left-1/2 transform -translate-x-1/2 bg-gray-800 text-white text-xs px-2 py-1 rounded whitespace-nowrap">
+                  {convertTemp(current, unit)}
+                </div>
+              </div>
+              <div 
+                className="absolute bottom-0 w-0.5 h-8 bg-red-700"
+                style={{ left: `${maxPos}%`, transform: 'translateX(-50%)' }}
+                title={`High: ${convertTemp(maxTemp, unit)}`}
+              />
+            </div>
+            {!isPreview && (
+              <div className="flex justify-between text-xs text-gray-600">
+                <span>{convertTemp(scaleMin, unit)}</span>
+                <span>{convertTemp(scaleMax, unit)}</span>
+              </div>
+            )}
+          </div>
+        )
+
+      case 10: // Dots Timeline
+        return (
+          <div className="space-y-3">
+            <div className="relative h-2 bg-gradient-to-r from-blue-500 via-green-400 via-yellow-400 to-red-500 rounded-full">
+              <div 
+                className="absolute top-1/2 w-4 h-4 bg-blue-600 border-2 border-white rounded-full shadow-lg"
+                style={{ left: `${minPos}%`, transform: 'translate(-50%, -50%)' }}
+                title={`Low: ${convertTemp(minTemp, unit)}`}
+              />
+              <div 
+                className="absolute top-1/2 w-5 h-5 bg-white border-3 border-gray-800 rounded-full shadow-xl z-10"
+                style={{ left: `${currentPos}%`, transform: 'translate(-50%, -50%)' }}
+                title={`Current: ${convertTemp(current, unit)}`}
+              />
+              <div 
+                className="absolute top-1/2 w-4 h-4 bg-red-600 border-2 border-white rounded-full shadow-lg"
+                style={{ left: `${maxPos}%`, transform: 'translate(-50%, -50%)' }}
+                title={`High: ${convertTemp(maxTemp, unit)}`}
+              />
+            </div>
+            <div className="grid grid-cols-3 gap-2 text-center text-xs">
+              <div>
+                <div className="text-blue-600 font-semibold">{convertTemp(minTemp, unit)}</div>
+                <div className="text-gray-500">Low</div>
+              </div>
+              <div>
+                <div className="text-gray-800 font-bold text-sm">{convertTemp(current, unit)}</div>
+                <div className="text-gray-600">Current</div>
+              </div>
+              <div>
+                <div className="text-red-600 font-semibold">{convertTemp(maxTemp, unit)}</div>
+                <div className="text-gray-500">High</div>
+              </div>
+            </div>
+          </div>
+        )
+
+      default:
+        return <div className="text-center text-gray-500">Unknown style</div>
+    }
+  }
+
+  // Render weather visualization based on style
+  const renderWeatherVisualization = (style: number, marine: MarineData | null, isPreview: boolean) => {
+    if (!marine) {
+      return <div className="text-center text-gray-500 text-sm">No weather data</div>
+    }
+
+    const WeatherIcon = getWeatherIcon(marine.weatherCode, isNightTime())
+    const weatherDesc = getWeatherDescription(marine.weatherCode)
+    const hours = isPreview ? [1, 2, 3] : [1, 2, 3, 4, 5, 6]
+
+    switch (style) {
+      case 1: // Grid Cards
+        return (
+          <div className="space-y-2">
+            <div className={`grid ${isPreview ? 'grid-cols-3' : 'grid-cols-6'} gap-2`}>
+              {hours.map((hour) => (
+                <div key={hour} className="text-center p-2 bg-gradient-to-br from-blue-50 to-blue-100 rounded-lg border border-blue-200">
+                  <div className="text-2xl mb-1">
+                    <WeatherIcon className="mx-auto text-blue-600" />
+                  </div>
+                  <div className="text-xs font-medium text-gray-700">+{hour}h</div>
+                </div>
+              ))}
+            </div>
+            {!isPreview && <div className="text-xs text-gray-500 text-center mt-2">{weatherDesc}</div>}
+          </div>
+        )
+
+      case 2: // Horizontal Timeline
+        return (
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              {hours.map((hour, idx) => (
+                <div key={hour} className="flex flex-col items-center">
+                  <div className="text-xl mb-1">
+                    <WeatherIcon className="text-blue-600" />
+                  </div>
+                  <div className="w-8 h-1 bg-blue-400 rounded-full" />
+                  <div className="text-xs text-gray-600 mt-1">+{hour}h</div>
+                </div>
+              ))}
+            </div>
+            {!isPreview && <div className="text-xs text-gray-500 text-center">{weatherDesc}</div>}
+          </div>
+        )
+
+      case 3: // Bubble Row
+        return (
+          <div className="space-y-2">
+            <div className="flex items-center justify-around">
+              {hours.map((hour) => (
+                <div key={hour} className="flex flex-col items-center">
+                  <div className="w-12 h-12 bg-gradient-to-br from-blue-400 to-blue-600 rounded-full flex items-center justify-center shadow-lg">
+                    <WeatherIcon className="text-white text-lg" />
+                  </div>
+                  <div className="text-xs text-gray-600 mt-1">+{hour}h</div>
+                </div>
+              ))}
+            </div>
+            {!isPreview && <div className="text-xs text-gray-500 text-center mt-2">{weatherDesc}</div>}
+          </div>
+        )
+
+      case 4: // Vertical Stack
+        return (
+          <div className="space-y-2">
+            {hours.slice(0, isPreview ? 3 : 4).map((hour) => (
+              <div key={hour} className="flex items-center justify-between p-2 bg-gray-50 rounded-lg border border-gray-200">
+                <div className="flex items-center gap-2">
+                  <WeatherIcon className="text-blue-600 text-xl" />
+                  <span className="text-sm text-gray-700">Hour +{hour}</span>
+                </div>
+                <div className="text-xs text-gray-500">{weatherDesc}</div>
+              </div>
+            ))}
+          </div>
+        )
+
+      case 5: // Wave Pattern
+        return (
+          <div className="space-y-3">
+            <div className="relative h-20 bg-gradient-to-b from-blue-50 to-white rounded-lg overflow-hidden border border-blue-200">
+              <div className="absolute inset-0 flex items-center justify-around">
+                {hours.map((hour, idx) => (
+                  <div 
+                    key={hour} 
+                    className="flex flex-col items-center"
+                    style={{ transform: `translateY(${Math.sin(idx) * 10}px)` }}
+                  >
+                    <WeatherIcon className="text-blue-600 text-2xl" />
+                    <div className="text-xs text-gray-600 mt-1">+{hour}h</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+            {!isPreview && <div className="text-xs text-gray-500 text-center">{weatherDesc}</div>}
+          </div>
+        )
+
+      case 6: // Compact Pills
+        return (
+          <div className="space-y-2">
+            <div className="flex flex-wrap gap-2 justify-center">
+              {hours.map((hour) => (
+                <div key={hour} className="flex items-center gap-1 bg-blue-100 border border-blue-300 rounded-full px-3 py-1">
+                  <WeatherIcon className="text-blue-600 text-sm" />
+                  <span className="text-xs font-medium text-gray-700">+{hour}h</span>
+                </div>
+              ))}
+            </div>
+            {!isPreview && <div className="text-xs text-gray-500 text-center mt-2">{weatherDesc}</div>}
+          </div>
+        )
+
+      case 7: // Large Icon Focus
+        return (
+          <div className="space-y-3">
+            <div className="flex items-center justify-center">
+              <div className="w-24 h-24 bg-gradient-to-br from-blue-400 via-blue-500 to-blue-600 rounded-2xl flex items-center justify-center shadow-xl">
+                <WeatherIcon className="text-white text-5xl" />
+              </div>
+            </div>
+            <div className="text-center">
+              <div className="text-sm font-semibold text-gray-800">{weatherDesc}</div>
+              {!isPreview && (
+                <div className="flex justify-center gap-2 mt-2">
+                  {hours.slice(0, 4).map((hour) => (
+                    <div key={hour} className="text-xs text-gray-500">+{hour}h</div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        )
+
+      case 8: // Icon Bar with Dividers
+        return (
+          <div className="space-y-2">
+            <div className="flex items-center divide-x divide-gray-300">
+              {hours.map((hour) => (
+                <div key={hour} className="flex-1 flex flex-col items-center py-2">
+                  <WeatherIcon className="text-blue-600 text-2xl mb-1" />
+                  <div className="text-xs text-gray-600">+{hour}h</div>
+                </div>
+              ))}
+            </div>
+            {!isPreview && <div className="text-xs text-gray-500 text-center">{weatherDesc}</div>}
+          </div>
+        )
+
+      case 9: // Staggered Cards
+        return (
+          <div className="space-y-2">
+            <div className={`grid ${isPreview ? 'grid-cols-3' : 'grid-cols-6'} gap-1`}>
+              {hours.map((hour, idx) => (
+                <div 
+                  key={hour} 
+                  className="text-center p-2 bg-white rounded-lg border-2 border-blue-300 shadow-sm"
+                  style={{ marginTop: `${idx % 2 === 0 ? 0 : 8}px` }}
+                >
+                  <WeatherIcon className="mx-auto text-blue-600 text-xl" />
+                  <div className="text-xs text-gray-700 mt-1">+{hour}h</div>
+                </div>
+              ))}
+            </div>
+            {!isPreview && <div className="text-xs text-gray-500 text-center mt-2">{weatherDesc}</div>}
+          </div>
+        )
+
+      case 10: // Timeline with Dots (matching temp style 10)
+        return (
+          <div className="space-y-3">
+            <div className="relative">
+              <div className="h-2 bg-gradient-to-r from-blue-400 via-blue-500 to-blue-600 rounded-full" />
+              <div className="flex justify-between mt-3">
+                {hours.map((hour) => (
+                  <div key={hour} className="flex flex-col items-center" style={{ width: `${100 / hours.length}%` }}>
+                    <div className="w-8 h-8 bg-white border-2 border-blue-600 rounded-full shadow-lg flex items-center justify-center -mt-8">
+                      <WeatherIcon className="text-blue-600 text-sm" />
+                    </div>
+                    <div className="text-xs text-gray-700 font-medium mt-1">+{hour}h</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+            {!isPreview && (
+              <div className="text-center">
+                <div className="text-sm font-semibold text-gray-800">{weatherDesc}</div>
+                <div className="text-xs text-gray-500">Current conditions</div>
+              </div>
+            )}
+          </div>
+        )
+
+      default:
+        return <div className="text-center text-gray-500">Unknown style</div>
+    }
+  }
 
   async function fetchData() {
     try {
@@ -1712,80 +2289,20 @@ function App() {
                         
                         
                         
-                        {/* Temperature Visualization */}
+                        {/* Temperature Visualization - Fixed to Style 10 */}
                         <div className="bg-white rounded-lg p-4 border border-orange-200">
                           <div className="text-sm font-medium text-orange-800 mb-3 text-center">Temperature Scale</div>
                           
-                          {/* Temperature scale with labels outside */}
-                          <div className="space-y-2">
-                            {/* Gradient bar with subtle effects */}
-                            <div className="relative h-8 bg-gradient-to-r from-blue-500 via-green-400 via-yellow-400 via-orange-400 to-red-500 rounded-full overflow-hidden">
-                              {/* Low temperature indicator (blue) */}
-                              <div 
-                                className="absolute top-0 w-1 h-full bg-blue-600 border border-blue-800 shadow-lg z-20 rounded-full"
-                                style={{
-                                  left: `${Math.max(0, Math.min(100, ((15 + 20) / 60) * 100))}%`,
-                                  transform: 'translateX(-50%)'
-                                }}
-                              />
-                              {/* High temperature indicator (red) */}
-                              <div 
-                                className="absolute top-0 w-1 h-full bg-red-600 border border-red-800 shadow-lg z-20 rounded-full"
-                                style={{
-                                  left: `${Math.max(0, Math.min(100, ((25 + 20) / 60) * 100))}%`,
-                                  transform: 'translateX(-50%)'
-                                }}
-                              />
-                              {/* Current temperature indicator with subtle pulse */}
-                              {marine.temperatureC && (
-                                <div 
-                                  className="absolute top-0 w-2 h-full bg-white border-2 border-gray-800 shadow-lg z-30 rounded-full animate-pulse"
-                                  style={{
-                                    left: `${Math.max(0, Math.min(100, ((Number(marine.temperatureC) + 20) / 60) * 100))}%`,
-                                    transform: 'translateX(-50%)',
-                                    boxShadow: '0 0 10px rgba(0,0,0,0.3), 0 0 20px rgba(255,255,255,0.5)'
-                                  }}
-                                  title={`Temperature: ${marine.temperatureC}°C`}
-                                />
-              )}
-            </div>
-
-                            {/* Temperature labels below */}
-                            <div className="flex justify-between text-xs text-gray-600">
-                              <span>{temperatureUnit === 'celsius' ? '-20°C' : '-4°F'}</span>
-                              <span>{temperatureUnit === 'celsius' ? '0°C' : '32°F'}</span>
-                              <span>{temperatureUnit === 'celsius' ? '20°C' : '68°F'}</span>
-                              <span>{temperatureUnit === 'celsius' ? '40°C' : '104°F'}</span>
-                            </div>
-                          </div>
+                          {/* Permanently using Style 10 - Dots Timeline */}
+                          {renderTempVisualization(10, marine, temperatureUnit, false)}
                         </div>
                         
                         {/* Weather Visualization */}
                         <div className="bg-white rounded-lg p-4 border border-orange-200">
-                          <div className="text-sm font-medium text-orange-800 mb-3 text-center">
-                            Weather Forecast
-                          </div>
+                          <div className="text-sm font-medium text-orange-800 mb-3 text-center">Weather Forecast</div>
                           
-                          <div className="space-y-3">
-                            <div className="grid grid-cols-6 gap-2">
-                              {[1, 2, 3, 4, 5, 6].map((hour) => {
-                                const WeatherIcon = getWeatherIcon(marine.weatherCode, isNightTime())
-                                return (
-                                  <div key={hour} className="text-center p-1 bg-gray-50 rounded">
-                                    <div className="text-lg mb-1">
-                                      <WeatherIcon className="mx-auto text-blue-500" />
-                                    </div>
-                                    <div className="text-xs text-gray-600">
-                                      +{hour}h
-                                    </div>
-                                  </div>
-                                )
-                              })}
-                            </div>
-                            <div className="text-xs text-gray-500 text-center">
-                              Forecast based on current conditions
-                            </div>
-                          </div>
+                          {/* Permanently using Style 10 - Timeline with Dots */}
+                          {renderWeatherVisualization(10, marine, false)}
                         </div>
                       </div>
 

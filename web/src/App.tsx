@@ -14,7 +14,6 @@ import {
   // Material Design - main logo
   MdSailing
 } from 'react-icons/md'
-import BeaufortHeaderOptions from './BeaufortHeaderOptions'
 
 type HarborKey = 'Sausalito' | 'Berkeley' | 'Alameda' | 'San Francisco' | 'Richmond'
 
@@ -129,7 +128,6 @@ function App() {
   const [temperatureUnit, setTemperatureUnit] = useState<'celsius' | 'fahrenheit'>('fahrenheit')
   const [mapStyle, setMapStyle] = useState<'streets' | 'satellite'>('streets')
   const [isDarkMode, setIsDarkMode] = useState(false)
-  const [showBeaufortHeaderOptions, setShowBeaufortHeaderOptions] = useState(false)
   const [showHarborInstruction, setShowHarborInstruction] = useState(true)
   const [showBoatInstruction, setShowBoatInstruction] = useState(false)
   const [showDarkModeInstruction, setShowDarkModeInstruction] = useState(false)
@@ -1385,17 +1383,9 @@ function App() {
                 <>
                   {/* Wind Scale Visualization */}
                   <div className="mb-6">
-                    <div className="mb-4 flex items-center justify-between">
-                      <h3 className="text-lg font-semibold text-blue-900">
-                        Wind Scale
-                      </h3>
-                          <button
-                        onClick={() => setShowBeaufortHeaderOptions(true)}
-                        className="px-3 py-1 text-xs rounded bg-blue-100 text-blue-700 hover:bg-blue-200 transition-colors"
-                      >
-                        Header Options
-                          </button>
-                  </div>
+                    <h3 className="text-lg font-semibold text-blue-900 mb-4">
+                      Wind Scale
+                    </h3>
                     
                     {/* Option 10: Wind Range Slider */}
                     <div className="mb-4 p-4 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg border border-blue-200">
@@ -2562,16 +2552,6 @@ function App() {
           </div>
         </div>
       </footer>
-
-      {/* Beaufort Header Options Modal */}
-      {showBeaufortHeaderOptions && (
-        <BeaufortHeaderOptions
-          onSelect={() => {
-            setShowBeaufortHeaderOptions(false)
-          }}
-          onClose={() => setShowBeaufortHeaderOptions(false)}
-        />
-      )}
     </div>
   )
 }
